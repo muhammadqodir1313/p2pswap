@@ -118,7 +118,10 @@ function AdminPage() {
 
   async function deactivate(id: string, active: boolean) {
     const { error } = await supabase.from("profiles").update({ is_active: !active }).eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success(active ? "User deactivated" : "User reactivated");
     profilesQuery.refetch();
   }

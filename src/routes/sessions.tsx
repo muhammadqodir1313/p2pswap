@@ -131,7 +131,10 @@ function SessionCard({
       .update({ status: "accepted" })
       .eq("id", session.id);
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("Swap accepted!");
     onChanged();
   }
@@ -140,7 +143,10 @@ function SessionCard({
     setBusy(true);
     const { error } = await supabase.rpc("complete_session", { _session_id: session.id });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("Session completed — you earned +10 PeerCoin!");
     onChanged();
   }
@@ -204,7 +210,10 @@ function FeedbackForm({
       .from("feedback")
       .insert({ session_id: sessionId, user_id: meId, rating, comment });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("Thanks for your feedback!");
     onDone();
   }

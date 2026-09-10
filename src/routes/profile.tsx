@@ -74,7 +74,10 @@ function ProfilePage() {
       .eq("user_id", user!.id)
       .eq("kind", kind)
       .eq("skill", skill);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     profileQuery.refetch();
   }
 
@@ -85,7 +88,10 @@ function ProfilePage() {
       .update({ first_name: firstName, last_name: lastName, bio })
       .eq("id", user!.id);
     setSaving(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("Profile saved");
     profileQuery.refetch();
   }
