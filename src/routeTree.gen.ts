@@ -14,10 +14,10 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MatchesRouteImport } from './routes/matches'
-import { Route as PlansRouteImport } from './routes/plans'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SessionsRouteImport } from './routes/sessions'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as SubscriptionRouteImport } from './routes/subscription'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -44,11 +44,6 @@ const MatchesRoute = MatchesRouteImport.update({
   path: '/matches',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PlansRoute = PlansRouteImport.update({
-  id: '/plans',
-  path: '/plans',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -64,6 +59,11 @@ const SignupRoute = SignupRouteImport.update({
   path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SubscriptionRoute = SubscriptionRouteImport.update({
+  id: '/subscription',
+  path: '/subscription',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -71,10 +71,10 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/matches': typeof MatchesRoute
-  '/plans': typeof PlansRoute
   '/profile': typeof ProfileRoute
   '/sessions': typeof SessionsRoute
   '/signup': typeof SignupRoute
+  '/subscription': typeof SubscriptionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -82,10 +82,10 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/matches': typeof MatchesRoute
-  '/plans': typeof PlansRoute
   '/profile': typeof ProfileRoute
   '/sessions': typeof SessionsRoute
   '/signup': typeof SignupRoute
+  '/subscription': typeof SubscriptionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -94,10 +94,10 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/matches': typeof MatchesRoute
-  '/plans': typeof PlansRoute
   '/profile': typeof ProfileRoute
   '/sessions': typeof SessionsRoute
   '/signup': typeof SignupRoute
+  '/subscription': typeof SubscriptionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -107,10 +107,10 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/matches'
-    | '/plans'
     | '/profile'
     | '/sessions'
     | '/signup'
+    | '/subscription'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -118,10 +118,10 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/matches'
-    | '/plans'
     | '/profile'
     | '/sessions'
     | '/signup'
+    | '/subscription'
   id:
     | '__root__'
     | '/'
@@ -129,10 +129,10 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/matches'
-    | '/plans'
     | '/profile'
     | '/sessions'
     | '/signup'
+    | '/subscription'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -141,10 +141,10 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   MatchesRoute: typeof MatchesRoute
-  PlansRoute: typeof PlansRoute
   ProfileRoute: typeof ProfileRoute
   SessionsRoute: typeof SessionsRoute
   SignupRoute: typeof SignupRoute
+  SubscriptionRoute: typeof SubscriptionRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -184,13 +184,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MatchesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/plans': {
-      id: '/plans'
-      path: '/plans'
-      fullPath: '/plans'
-      preLoaderRoute: typeof PlansRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -212,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/subscription': {
+      id: '/subscription'
+      path: '/subscription'
+      fullPath: '/subscription'
+      preLoaderRoute: typeof SubscriptionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -221,10 +221,10 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   MatchesRoute: MatchesRoute,
-  PlansRoute: PlansRoute,
   ProfileRoute: ProfileRoute,
   SessionsRoute: SessionsRoute,
   SignupRoute: SignupRoute,
+  SubscriptionRoute: SubscriptionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

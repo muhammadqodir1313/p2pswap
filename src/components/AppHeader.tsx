@@ -9,7 +9,7 @@ const links = [
   { to: "/matches", label: "Find Match" },
   { to: "/sessions", label: "My Sessions" },
   { to: "/profile", label: "Profile" },
-  { to: "/plans", label: "Plans" },
+  { to: "/subscription", label: "Plans" },
 ] as const;
 
 export function AppHeader() {

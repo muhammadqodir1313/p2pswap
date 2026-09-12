@@ -89,7 +89,7 @@ function DashboardPage() {
             </p>
           ) : null}
           {!isUnlimited ? (
-            <Link to="/plans" className="mt-3 inline-block text-xs font-medium underline opacity-90">
+            <Link to="/subscription" className="mt-3 inline-block text-xs font-medium underline opacity-90">
               Upgrade plan
             </Link>
           ) : null}
