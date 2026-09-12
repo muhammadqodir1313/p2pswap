@@ -116,6 +116,12 @@ export async function fetchWeeklyPoints(userId: string): Promise<WeeklyPoints> {
   };
 }
 
+/** Switches the signed-in user's subscription plan. */
+export async function updateMyPlan(userId: string, plan: Plan): Promise<void> {
+  const { error } = await supabase.from("profiles").update({ plan }).eq("id", userId);
+  if (error) throw error;
+}
+
 /** Spends one weekly PeerPoint. Throws when the allowance is used up. */
 export async function spendPeerPoint(): Promise<number> {
   const { data, error } = await supabase.rpc("spend_peerpoint");
