@@ -88,6 +88,11 @@ function DashboardPage() {
               You've used all {allowance} PeerPoints this week. Your PeerPoints reset next week.
             </p>
           ) : null}
+          {!isUnlimited ? (
+            <Link to="/plans" className="mt-3 inline-block text-xs font-medium underline opacity-90">
+              Upgrade plan
+            </Link>
+          ) : null}
         </div>
         <Stat icon={GraduationCap} label="Skills I Teach" value={me?.teach.length ?? 0} />
         <Stat icon={Lightbulb} label="Skills I Want" value={me?.learn.length ?? 0} />
