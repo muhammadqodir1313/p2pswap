@@ -34,8 +34,15 @@ def step(name: str) -> None:
     print(f"PASS  {name}", flush=True)
 
 
+async def goto(page, path: str) -> None:
+    """Navigate and wait for React to hydrate before interacting."""
+    await page.goto(f"{BASE_URL}{path}", wait_until="domcontentloaded")
+    await page.wait_for_load_state("networkidle")
+    await page.wait_for_timeout(500)
+
+
 async def peercoin_balance(page) -> int:
-    await page.goto(f"{BASE_URL}/dashboard", wait_until="domcontentloaded")
+    await goto(page, "/dashboard")
     card = page.locator("div", has=page.get_by_text("PeerCoin", exact=True)).last
     await expect(card).to_be_visible(timeout=TIMEOUT)
     text = await card.inner_text()
@@ -57,7 +64,7 @@ async def run() -> None:
         page.set_default_timeout(TIMEOUT)
 
         # 1. Sign up ---------------------------------------------------------
-        await page.goto(f"{BASE_URL}/signup", wait_until="domcontentloaded")
+        await goto(page, "/signup")
         await page.get_by_label("First name").fill("Eva")
         await page.get_by_label("Last name").fill("Tester")
         await page.get_by_label("Email").fill(email)
@@ -67,7 +74,7 @@ async def run() -> None:
         step("sign up creates an account and lands on the dashboard")
 
         # 2. Add skills ------------------------------------------------------
-        await page.goto(f"{BASE_URL}/profile", wait_until="domcontentloaded")
+        await goto(page, "/profile")
         for skill in TEACH_SKILLS:
             await page.get_by_label("Skills I Can Teach").fill(skill)
             await page.get_by_label("Skills I Can Teach").press("Enter")
@@ -79,7 +86,7 @@ async def run() -> None:
         step("teach and learn skills are saved on the profile")
 
         # 3. Find a match ----------------------------------------------------
-        await page.goto(f"{BASE_URL}/matches", wait_until="domcontentloaded")
+        await goto(page, "/matches")
         match_card = page.locator("article").first
         await expect(match_card).to_be_visible(timeout=TIMEOUT)
         await expect(match_card.get_by_text(re.compile(r"\d+%"))).to_be_visible()
@@ -94,7 +101,7 @@ async def run() -> None:
         balance_before = await peercoin_balance(page)
 
         # 5. Accept the swap -------------------------------------------------
-        await page.goto(f"{BASE_URL}/sessions", wait_until="domcontentloaded")
+        await goto(page, "/sessions")
         accept = page.get_by_role("button", name=re.compile("Accept")).first
         await expect(accept).to_be_visible(timeout=TIMEOUT)
         await accept.click()
@@ -116,7 +123,7 @@ async def run() -> None:
         step(f"PeerCoin reward granted ({balance_before} -> {balance_after})")
 
         # 7. Star rating ------------------------------------------------------
-        await page.goto(f"{BASE_URL}/sessions", wait_until="domcontentloaded")
+        await goto(page, "/sessions")
         await page.get_by_role("tab", name=re.compile("Completed")).click()
         await page.get_by_role("button", name="5 star").first.click()
         await page.get_by_placeholder("Optional feedback").fill("Great swap, learned a lot!")
