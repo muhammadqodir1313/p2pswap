@@ -147,7 +147,7 @@ function SessionCard({
       toast.error(error.message);
       return;
     }
-    toast.success("Session completed — you earned +10 PeerCoin!");
+    toast.success("Session completed!");
     onChanged();
   }
 

@@ -92,8 +92,14 @@ export function MatchCard({
 
       <p className="text-xs text-accent">{match.label}</p>
 
-      <Button onClick={requestSwap} disabled={busy || requested} className="mt-auto">
-        {requested ? "Request sent" : busy ? "Sending…" : "Request Swap"}
+      <Button onClick={requestSwap} disabled={busy || requested || outOfPoints} className="mt-auto">
+        {requested
+          ? "Request sent"
+          : busy
+            ? "Sending…"
+            : outOfPoints
+              ? "No PeerPoints left this week"
+              : "Request Swap (1 PeerPoint)"}
       </Button>
     </article>
   );
