@@ -6,15 +6,15 @@ import { AppShell } from "@/components/AppHeader";
 import { MatchCard } from "@/components/MatchCard";
 import { Button } from "@/components/ui/button";
 import { useAuth, useRequireAuth } from "@/lib/auth";
-import { fetchMySessions, fetchProfiles, rankMatches } from "@/lib/peerswap";
+import { fetchMySessions, fetchProfiles, fetchWeeklyPoints, rankMatches } from "@/lib/peerswap";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
       { title: "Dashboard — PeerSwap" },
-      { name: "description", content: "Your PeerCoin balance, skills and recommended skill-swap matches." },
+      { name: "description", content: "Your weekly PeerPoints, skills and recommended skill-swap matches." },
       { property: "og:title", content: "Dashboard — PeerSwap" },
-      { property: "og:description", content: "Your PeerCoin balance, skills and recommended matches." },
+      { property: "og:description", content: "Your weekly PeerPoints, skills and recommended matches." },
     ],
   }),
   component: DashboardPage,
@@ -34,6 +34,11 @@ function DashboardPage() {
     queryFn: () => fetchMySessions(user!.id),
     enabled: !!user,
   });
+  const pointsQuery = useQuery({
+    queryKey: ["weekly-points", user?.id],
+    queryFn: () => fetchWeeklyPoints(user!.id),
+    enabled: !!user,
+  });
 
   if (loading || !user) return null;
 
@@ -43,6 +48,15 @@ function DashboardPage() {
   const completed = sessions.filter((s) => s.status === "completed").length;
   const matches = me ? rankMatches(me, profiles).slice(0, 5) : [];
   const requestedIds = new Set(sessions.map((s) => (s.requester_id === user.id ? s.partner_id : s.requester_id)));
+  const points = pointsQuery.data;
+  const remaining = points?.remaining ?? 0;
+  const allowance = points?.allowance ?? 3;
+  const days = points?.daysUntilReset ?? 7;
+
+  function refreshAfterRequest() {
+    void sessionsQuery.refetch();
+    void pointsQuery.refetch();
+  }
 
   return (
     <AppShell>
@@ -54,13 +68,24 @@ function DashboardPage() {
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="surface-card bg-brand-gradient p-5 text-primary-foreground">
           <Coins className="size-5" />
-          <p className="mt-3 text-3xl font-bold">{me?.peercoins ?? 0}</p>
-          <p className="text-sm opacity-80">PeerCoin</p>
+          <p className="mt-3 text-sm font-medium opacity-90">PeerPoints</p>
+          <p className="mt-1 text-2xl font-bold">
+            {remaining} / {allowance} available this week
+          </p>
+          <p className="text-sm opacity-80">
+            Resets in {days} {days === 1 ? "day" : "days"}
+          </p>
+          {remaining === 0 ? (
+            <p className="mt-2 text-xs opacity-90">
+              You've used all {allowance} PeerPoints this week. Your PeerPoints reset next week.
+            </p>
+          ) : null}
         </div>
         <Stat icon={GraduationCap} label="Skills I Teach" value={me?.teach.length ?? 0} />
         <Stat icon={Lightbulb} label="Skills I Want" value={me?.learn.length ?? 0} />
         <Stat icon={CheckCircle2} label="Completed Sessions" value={completed} />
       </div>
+
 
       <div className="mt-10 flex items-center justify-between gap-4">
         <h2 className="text-xl font-semibold tracking-tight">Your Potential Matches</h2>
