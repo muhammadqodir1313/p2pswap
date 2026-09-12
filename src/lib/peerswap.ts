@@ -82,6 +82,41 @@ export async function fetchMySessions(userId: string): Promise<SwapSession[]> {
   return (data ?? []) as SwapSession[];
 }
 
+/** Free plan: 3 PeerPoints per rolling 7-day week. */
+export const WEEKLY_ALLOWANCE = 3;
+
+export type WeeklyPoints = {
+  weekStart: string;
+  used: number;
+  allowance: number;
+  remaining: number;
+  daysUntilReset: number;
+};
+
+export async function fetchWeeklyPoints(userId: string): Promise<WeeklyPoints> {
+  const { data, error } = await supabase.rpc("refresh_weekly_points", { _user_id: userId });
+  if (error) throw error;
+  const row = (data ?? [])[0];
+  const weekStart = row?.week_start ?? new Date().toISOString().slice(0, 10);
+  const used = row?.used ?? 0;
+  const allowance = row?.allowance ?? WEEKLY_ALLOWANCE;
+  const elapsed = Math.floor((Date.now() - new Date(`${weekStart}T00:00:00`).getTime()) / 86_400_000);
+  return {
+    weekStart,
+    used,
+    allowance,
+    remaining: Math.max(0, allowance - used),
+    daysUntilReset: Math.max(0, 7 - Math.min(7, Math.max(0, elapsed))),
+  };
+}
+
+/** Spends one weekly PeerPoint. Throws when the allowance is used up. */
+export async function spendPeerPoint(): Promise<number> {
+  const { data, error } = await supabase.rpc("spend_peerpoint");
+  if (error) throw error;
+  return data as number;
+}
+
 export type MatchResult = {
   score: number;
   label: string;

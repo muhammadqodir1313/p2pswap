@@ -15,6 +15,13 @@
       "when": 1789028643618,
       "tag": "0001_complete_session_fn",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789198200925,
+      "tag": "0002_weekly_peerpoints",
+      "breakpoints": true
     }
   ]
 }

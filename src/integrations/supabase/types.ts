@@ -99,6 +99,8 @@ export type Database = {
           is_demo: boolean
           last_name: string
           peercoins: number
+          week_start: string
+          weekly_points_used: number
         }
         Insert: {
           avatar_url?: string | null
@@ -110,6 +112,8 @@ export type Database = {
           is_demo?: boolean
           last_name?: string
           peercoins?: number
+          week_start?: string
+          weekly_points_used?: number
         }
         Update: {
           avatar_url?: string | null
@@ -121,6 +125,8 @@ export type Database = {
           is_demo?: boolean
           last_name?: string
           peercoins?: number
+          week_start?: string
+          weekly_points_used?: number
         }
         Relationships: []
       }
@@ -235,6 +241,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      refresh_weekly_points: {
+        Args: { _user_id: string }
+        Returns: {
+          allowance: number
+          used: number
+          week_start: string
+        }[]
+      }
+      spend_peerpoint: { Args: never; Returns: number }
     }
     Enums: {
       app_role: "admin" | "user"
