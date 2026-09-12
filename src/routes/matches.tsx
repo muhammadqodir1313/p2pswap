@@ -4,7 +4,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppHeader";
 import { MatchCard } from "@/components/MatchCard";
 import { useAuth, useRequireAuth } from "@/lib/auth";
-import { fetchMySessions, fetchProfiles, rankMatches } from "@/lib/peerswap";
+import { fetchMySessions, fetchProfiles, fetchWeeklyPoints, rankMatches } from "@/lib/peerswap";
 
 export const Route = createFileRoute("/matches")({
   head: () => ({
@@ -26,6 +26,11 @@ function MatchesPage() {
   const sessionsQuery = useQuery({
     queryKey: ["sessions", user?.id],
     queryFn: () => fetchMySessions(user!.id),
+    enabled: !!user,
+  });
+  const pointsQuery = useQuery({
+    queryKey: ["weekly-points", user?.id],
+    queryFn: () => fetchWeeklyPoints(user!.id),
     enabled: !!user,
   });
 
@@ -63,7 +68,11 @@ function MatchesPage() {
               match={m.match}
               meId={user.id}
               alreadyRequested={requestedIds.has(m.profile.id)}
-              onRequested={() => sessionsQuery.refetch()}
+              pointsLeft={pointsQuery.data?.remaining ?? null}
+              onRequested={() => {
+                void sessionsQuery.refetch();
+                void pointsQuery.refetch();
+              }}
             />
           ))}
         </div>

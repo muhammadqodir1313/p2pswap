@@ -24,12 +24,13 @@ export function MatchCard({
   match: MatchResult;
   meId: string;
   alreadyRequested?: boolean;
-  pointsLeft?: number;
+  /** null or omitted = unlimited / unknown. */
+  pointsLeft?: number | null;
   onRequested?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
-  const outOfPoints = pointsLeft !== undefined && pointsLeft <= 0;
+  const outOfPoints = pointsLeft !== undefined && pointsLeft !== null && pointsLeft <= 0;
 
   async function requestSwap() {
     setBusy(true);
@@ -37,7 +38,7 @@ export function MatchCard({
       await spendPeerPoint();
     } catch {
       setBusy(false);
-      toast.error("You've used all 3 PeerPoints this week. Your PeerPoints reset next week.");
+      toast.error("You've used all your PeerPoints this week. Your PeerPoints reset next week.");
       onRequested?.();
       return;
     }
