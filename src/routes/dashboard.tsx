@@ -49,8 +49,10 @@ function DashboardPage() {
   const matches = me ? rankMatches(me, profiles).slice(0, 5) : [];
   const requestedIds = new Set(sessions.map((s) => (s.requester_id === user.id ? s.partner_id : s.requester_id)));
   const points = pointsQuery.data;
-  const remaining = points?.remaining ?? 0;
+  const isUnlimited = points?.allowance == null && points != null;
+  const remaining = points?.remaining ?? null;
   const allowance = points?.allowance ?? 3;
+  const plan = points?.plan ?? "free";
   const days = points?.daysUntilReset ?? 7;
 
   function refreshAfterRequest() {
@@ -68,14 +70,20 @@ function DashboardPage() {
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="surface-card bg-brand-gradient p-5 text-primary-foreground">
           <Coins className="size-5" />
-          <p className="mt-3 text-sm font-medium opacity-90">PeerPoints</p>
+          <p className="mt-3 text-sm font-medium opacity-90">
+            PeerPoints · {plan === "pro" ? "Pro" : plan === "premium" ? "Premium" : "Free"} plan
+          </p>
           <p className="mt-1 text-2xl font-bold">
-            {remaining} / {allowance} available this week
+            {isUnlimited
+              ? "Unlimited PeerPoints"
+              : `${remaining} / ${allowance} PeerPoints this week`}
           </p>
-          <p className="text-sm opacity-80">
-            Resets in {days} {days === 1 ? "day" : "days"}
-          </p>
-          {remaining === 0 ? (
+          {!isUnlimited ? (
+            <p className="text-sm opacity-80">
+              Resets in {days} {days === 1 ? "day" : "days"}
+            </p>
+          ) : null}
+          {!isUnlimited && remaining === 0 ? (
             <p className="mt-2 text-xs opacity-90">
               You've used all {allowance} PeerPoints this week. Your PeerPoints reset next week.
             </p>
@@ -113,6 +121,7 @@ function DashboardPage() {
               match={m.match}
               meId={user.id}
               alreadyRequested={requestedIds.has(m.profile.id)}
+              pointsLeft={isUnlimited ? null : (remaining ?? 0)}
               onRequested={() => sessionsQuery.refetch()}
             />
           ))}

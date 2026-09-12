@@ -24,7 +24,8 @@ export function MatchCard({
   match: MatchResult;
   meId: string;
   alreadyRequested?: boolean;
-  pointsLeft?: number;
+  /** null or omitted = unlimited / unknown. */
+  pointsLeft?: number | null;
   onRequested?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
