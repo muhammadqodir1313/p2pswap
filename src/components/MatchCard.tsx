@@ -30,15 +30,9 @@ export function MatchCard({
 }) {
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
-  const outOfPoints = pointsLeft !== undefined && pointsLeft <= 0;
-
-  async function requestSwap() {
-    setBusy(true);
-    try {
-      await spendPeerPoint();
-    } catch {
-      setBusy(false);
-      toast.error("You've used all 3 PeerPoints this week. Your PeerPoints reset next week.");
+  const outOfPoints = pointsLeft !== undefined && pointsLeft !== null && pointsLeft <= 0;
+...
+      toast.error("You've used all your PeerPoints this week. Your PeerPoints reset next week.");
       onRequested?.();
       return;
     }
