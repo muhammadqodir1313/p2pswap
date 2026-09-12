@@ -82,14 +82,18 @@ export async function fetchMySessions(userId: string): Promise<SwapSession[]> {
   return (data ?? []) as SwapSession[];
 }
 
-/** Free plan: 3 PeerPoints per rolling 7-day week. */
-export const WEEKLY_ALLOWANCE = 3;
+/** Weekly PeerPoint allowance per plan. Pro is unlimited (allowance null). */
+export type Plan = "free" | "premium" | "pro";
+export const PLAN_ALLOWANCE: Record<Exclude<Plan, "pro">, number> = { free: 3, premium: 15 };
 
 export type WeeklyPoints = {
   weekStart: string;
   used: number;
-  allowance: number;
-  remaining: number;
+  /** null = unlimited (Pro plan). */
+  allowance: number | null;
+  /** null = unlimited (Pro plan). */
+  remaining: number | null;
+  plan: Plan;
   daysUntilReset: number;
 };
 
@@ -99,13 +103,15 @@ export async function fetchWeeklyPoints(userId: string): Promise<WeeklyPoints> {
   const row = (data ?? [])[0];
   const weekStart = row?.week_start ?? new Date().toISOString().slice(0, 10);
   const used = row?.used ?? 0;
-  const allowance = row?.allowance ?? WEEKLY_ALLOWANCE;
+  const plan = ((row as { plan?: string } | undefined)?.plan ?? "free") as Plan;
+  const allowance = (row?.allowance ?? PLAN_ALLOWANCE.free) as number | null;
   const elapsed = Math.floor((Date.now() - new Date(`${weekStart}T00:00:00`).getTime()) / 86_400_000);
   return {
     weekStart,
     used,
     allowance,
-    remaining: Math.max(0, allowance - used),
+    remaining: allowance == null ? null : Math.max(0, allowance - used),
+    plan,
     daysUntilReset: Math.max(0, 7 - Math.min(7, Math.max(0, elapsed))),
   };
 }
