@@ -11,10 +11,10 @@ import { useAuth } from "@/lib/auth";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Log in — PeerSwap" },
-      { name: "description", content: "Log in to PeerSwap to find your skill-swap match." },
-      { property: "og:title", content: "Log in — PeerSwap" },
-      { property: "og:description", content: "Log in to PeerSwap to find your skill-swap match." },
+      { title: "Kirish — PeerSwap" },
+      { name: "description", content: "PeerSwap hisobingizga kiring va mos hamkor toping." },
+      { property: "og:title", content: "Kirish — PeerSwap" },
+      { property: "og:description", content: "PeerSwap hisobingizga kiring va mos hamkor toping." },
     ],
   }),
   component: LoginPage,
@@ -37,10 +37,10 @@ function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) {
-      toast.error(error.message);
+      toast.error("Email yoki parol noto‘g‘ri. Qayta urinib ko‘ring.");
       return;
     }
-    toast.success("Welcome back!");
+    toast.success("Xush kelibsiz!");
     navigate({ to: "/dashboard" });
   }
 
@@ -50,23 +50,23 @@ function LoginPage() {
         <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
           ← PeerSwap
         </Link>
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight">Log in</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Continue your skill swaps.</p>
+        <h1 className="mt-4 text-2xl font-semibold tracking-tight">Kirish</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Ko‘nikma almashishni davom ettiring.</p>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Elektron pochta</Label>
             <Input
               id="email"
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder="siz@example.com"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Parol</Label>
             <Input
               id="password"
               type="password"
@@ -76,14 +76,14 @@ function LoginPage() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={busy}>
-            {busy ? "Logging in…" : "Log in"}
+            {busy ? "Kirilmoqda…" : "Kirish"}
           </Button>
         </form>
 
         <p className="mt-4 text-sm text-muted-foreground">
-          No account?{" "}
+          Hisobingiz yo‘qmi?{" "}
           <Link to="/signup" className="text-primary hover:underline">
-            Sign up
+            Ro‘yxatdan o‘tish
           </Link>
         </p>
       </div>

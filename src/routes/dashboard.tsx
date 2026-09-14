@@ -11,10 +11,10 @@ import { fetchMySessions, fetchProfiles, fetchWeeklyPoints, rankMatches } from "
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
-      { title: "Dashboard — PeerSwap" },
-      { name: "description", content: "Your weekly PeerPoints, skills and recommended skill-swap matches." },
-      { property: "og:title", content: "Dashboard — PeerSwap" },
-      { property: "og:description", content: "Your weekly PeerPoints, skills and recommended matches." },
+      { title: "Bosh sahifa — PeerSwap" },
+      { name: "description", content: "Haftalik PeerPointlar, ko‘nikmalar va tavsiya etilgan hamkorlar." },
+      { property: "og:title", content: "Bosh sahifa — PeerSwap" },
+      { property: "og:description", content: "Haftalik PeerPointlar, ko‘nikmalar va tavsiya etilgan hamkorlar." },
     ],
   }),
   component: DashboardPage,
@@ -63,59 +63,59 @@ function DashboardPage() {
   return (
     <AppShell>
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-        Hello, {me?.first_name || "there"} 👋
+        Salom, {me?.first_name || "do‘stim"} 👋
       </h1>
-      <p className="mt-1 text-sm text-muted-foreground">Here is your swap activity today.</p>
+      <p className="mt-1 text-sm text-muted-foreground">Bugungi almashinuv faolligingiz.</p>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="surface-card bg-brand-gradient p-5 text-primary-foreground">
           <Coins className="size-5" />
           <p className="mt-3 text-sm font-medium opacity-90">
-            PeerPoints · {plan === "pro" ? "Pro" : plan === "premium" ? "Premium" : "Free"} plan
+            PeerPointlar · {plan === "pro" ? "Pro" : plan === "premium" ? "Premium" : "Bepul"} tarif
           </p>
           <p className="mt-1 text-2xl font-bold">
             {isUnlimited
-              ? "Unlimited PeerPoints"
-              : `${remaining} / ${allowance} PeerPoints this week`}
+              ? "Cheksiz PeerPoint"
+              : `${remaining} / ${allowance} PeerPoint shu hafta`}
           </p>
           {!isUnlimited ? (
             <p className="text-sm opacity-80">
-              Resets in {days} {days === 1 ? "day" : "days"}
+              {days} kundan keyin yangilanadi
             </p>
           ) : null}
           {!isUnlimited && remaining === 0 ? (
             <p className="mt-2 text-xs opacity-90">
-              You've used all {allowance} PeerPoints this week. Your PeerPoints reset next week.
+              Bu haftadagi barcha {allowance} PeerPoint ishlatildi. Ular keyingi hafta tiklanadi.
             </p>
           ) : null}
           {!isUnlimited ? (
             <Link to="/subscription" className="mt-3 inline-block text-xs font-medium underline opacity-90">
-              Upgrade plan
+              Tarifni yangilash
             </Link>
           ) : null}
         </div>
-        <Stat icon={GraduationCap} label="Skills I Teach" value={me?.teach.length ?? 0} />
-        <Stat icon={Lightbulb} label="Skills I Want" value={me?.learn.length ?? 0} />
-        <Stat icon={CheckCircle2} label="Completed Sessions" value={completed} />
+        <Stat icon={GraduationCap} label="O‘rgatadigan ko‘nikmalarim" value={me?.teach.length ?? 0} />
+        <Stat icon={Lightbulb} label="O‘rganmoqchi bo‘lganlarim" value={me?.learn.length ?? 0} />
+        <Stat icon={CheckCircle2} label="Yakunlangan mashg‘ulotlar" value={completed} />
       </div>
 
 
       <div className="mt-10 flex items-center justify-between gap-4">
-        <h2 className="text-xl font-semibold tracking-tight">Your Potential Matches</h2>
+        <h2 className="text-xl font-semibold tracking-tight">Sizga mos hamkorlar</h2>
         <Button asChild variant="outline" size="sm">
-          <Link to="/matches">Find Match</Link>
+          <Link to="/matches">Hamkor topish</Link>
         </Button>
       </div>
 
       {profilesQuery.isLoading ? (
-        <p className="mt-4 text-sm text-muted-foreground">Loading matches…</p>
+        <p className="mt-4 text-sm text-muted-foreground">Mos hamkorlar yuklanmoqda…</p>
       ) : matches.length === 0 ? (
         <div className="surface-card mt-4 p-6 text-sm text-muted-foreground">
-          Add the skills you can teach and want to learn on your{" "}
+          Mos hamkorlarni ko‘rish uchun o‘rgata oladigan va o‘rganmoqchi bo‘lgan ko‘nikmalaringizni{" "}
           <Link to="/profile" className="text-primary hover:underline">
-            profile
+            profilingizga
           </Link>{" "}
-          to see matches.
+          qo‘shing.
         </div>
       ) : (
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
