@@ -38,7 +38,7 @@ export function MatchCard({
       await spendPeerPoint();
     } catch {
       setBusy(false);
-      toast.error("You've used all your PeerPoints this week. Your PeerPoints reset next week.");
+      toast.error("Bu haftadagi barcha PeerPointlaringiz ishlatildi. Ular keyingi hafta tiklanadi.");
       onRequested?.();
       return;
     }
@@ -46,17 +46,17 @@ export function MatchCard({
     const { error } = await supabase.from("swap_sessions").insert({
       requester_id: meId,
       partner_id: profile.id,
-      requester_teaches: match.iTeach.join(", ") || "To be agreed",
-      partner_teaches: match.theyTeach.join(", ") || "To be agreed",
+      requester_teaches: match.iTeach.join(", ") || "Kelishiladi",
+      partner_teaches: match.theyTeach.join(", ") || "Kelishiladi",
     });
     setBusy(false);
     if (error) {
-      toast.error(error.message);
+      toast.error("Almashinuv so‘rovini yuborib bo‘lmadi. Qayta urinib ko‘ring.");
       onRequested?.();
       return;
     }
     setSent(true);
-    toast.success("Swap request sent — 1 PeerPoint used.");
+    toast.success("Almashinuv so‘rovi yuborildi — 1 PeerPoint ishlatildi.");
     onRequested?.();
   }
 
@@ -76,17 +76,17 @@ export function MatchCard({
         </div>
         <div className="text-right">
           <p className="text-lg font-bold text-accent">{match.score}%</p>
-          <p className="text-[11px] text-muted-foreground">Match</p>
+          <p className="text-[11px] text-muted-foreground">Moslik</p>
         </div>
       </div>
 
       <div className="space-y-3">
         <div>
-          <p className="mb-1.5 text-xs uppercase tracking-wide text-muted-foreground">Can teach</p>
+          <p className="mb-1.5 text-xs uppercase tracking-wide text-muted-foreground">O‘rgata oladi</p>
           <SkillTags skills={profile.teach} tone="teach" />
         </div>
         <div>
-          <p className="mb-1.5 text-xs uppercase tracking-wide text-muted-foreground">Wants to learn</p>
+          <p className="mb-1.5 text-xs uppercase tracking-wide text-muted-foreground">O‘rganmoqchi</p>
           <SkillTags skills={profile.learn} tone="learn" />
         </div>
       </div>
@@ -95,12 +95,12 @@ export function MatchCard({
 
       <Button onClick={requestSwap} disabled={busy || requested || outOfPoints} className="mt-auto">
         {requested
-          ? "Request sent"
+          ? "So‘rov yuborildi"
           : busy
-            ? "Sending…"
+            ? "Yuborilmoqda…"
             : outOfPoints
-              ? "No PeerPoints left this week"
-              : "Request Swap (1 PeerPoint)"}
+              ? "Bu hafta PeerPoint qolmadi"
+              : "Almashinuv so‘rovi (1 PeerPoint)"}
       </Button>
     </article>
   );

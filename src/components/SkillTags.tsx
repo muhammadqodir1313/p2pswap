@@ -10,7 +10,7 @@ export function SkillTags({
   onRemove?: (skill: string) => void;
 }) {
   if (skills.length === 0) {
-    return <p className="text-sm text-muted-foreground">No skills added yet.</p>;
+    return <p className="text-sm text-muted-foreground">Hali ko‘nikma qo‘shilmagan.</p>;
   }
 
   return (
@@ -29,7 +29,7 @@ export function SkillTags({
           {onRemove ? (
             <button
               type="button"
-              aria-label={`Remove ${skill}`}
+              aria-label={`${skill} ko‘nikmasini olib tashlash`}
               onClick={() => onRemove(skill)}
               className="opacity-70 transition-opacity hover:opacity-100"
             >
