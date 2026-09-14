@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 
 const links = [
-  { to: "/dashboard", label: "Dashboard" },
-  { to: "/matches", label: "Find Match" },
-  { to: "/sessions", label: "My Sessions" },
-  { to: "/profile", label: "Profile" },
-  { to: "/subscription", label: "Plans" },
+  { to: "/dashboard", label: "Bosh sahifa" },
+  { to: "/matches", label: "Hamkor topish" },
+  { to: "/sessions", label: "Mashg‘ulotlarim" },
+  { to: "/profile", label: "Profil" },
+  { to: "/subscription", label: "Tariflar" },
 ] as const;
 
 export function AppHeader() {
@@ -48,7 +48,7 @@ export function AppHeader() {
           }}
         >
           <LogOut className="size-4" />
-          Logout
+          Chiqish
         </Button>
       </div>
     </header>

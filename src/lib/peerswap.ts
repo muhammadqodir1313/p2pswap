@@ -155,7 +155,7 @@ export function matchScore(
 
   return {
     score,
-    label: both ? "Great skill exchange" : one ? "One-way match" : "No match",
+    label: both ? "Ajoyib o‘zaro moslik" : one ? "Bir tomonlama moslik" : "Moslik yo‘q",
     iTeach,
     theyTeach,
   };
@@ -170,7 +170,7 @@ export function rankMatches(me: ProfileWithSkills, everyone: ProfileWithSkills[]
 }
 
 export function fullName(p: { first_name: string; last_name: string }) {
-  return `${p.first_name} ${p.last_name}`.trim() || "PeerSwap member";
+  return `${p.first_name} ${p.last_name}`.trim() || "PeerSwap a’zosi";
 }
 
 export function initials(p: { first_name: string; last_name: string }) {
@@ -178,7 +178,7 @@ export function initials(p: { first_name: string; last_name: string }) {
 }
 
 export function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", {
+  return new Date(iso).toLocaleDateString("uz-UZ", {
     day: "numeric",
     month: "short",
     year: "numeric",

@@ -16,10 +16,10 @@ import { fetchProfile, type SkillKind } from "@/lib/peerswap";
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { title: "My Profile — PeerSwap" },
-      { name: "description", content: "Edit your PeerSwap profile and the skills you teach and want to learn." },
-      { property: "og:title", content: "My Profile — PeerSwap" },
-      { property: "og:description", content: "Edit your profile and skills on PeerSwap." },
+      { title: "Mening profilim — PeerSwap" },
+      { name: "description", content: "PeerSwap profilingiz va ko‘nikmalaringizni tahrirlang." },
+      { property: "og:title", content: "Mening profilim — PeerSwap" },
+      { property: "og:description", content: "PeerSwap profilingiz va ko‘nikmalaringizni tahrirlang." },
     ],
   }),
   component: ProfilePage,
@@ -92,46 +92,46 @@ function ProfilePage() {
       toast.error(error.message);
       return;
     }
-    toast.success("Profile saved");
+    toast.success("Profil saqlandi");
     profileQuery.refetch();
   }
 
   return (
     <AppShell>
-      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">My Profile</h1>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Mening profilim</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Your skills power the matching — keep them up to date.
+        Mos hamkor topishda ko‘nikmalaringiz muhim — ularni yangilab turing.
       </p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="surface-card p-6">
-          <h2 className="font-semibold">Details</h2>
+          <h2 className="font-semibold">Ma’lumotlar</h2>
           <div className="mt-4 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="first">First name</Label>
+                <Label htmlFor="first">Ism</Label>
                 <Input id="first" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="last">Last name</Label>
+                <Label htmlFor="last">Familiya</Label>
                 <Input id="last" value={lastName} onChange={(e) => setLastName(e.target.value)} />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="bio">Short bio</Label>
+              <Label htmlFor="bio">Qisqacha ma’lumot</Label>
               <Textarea id="bio" value={bio} onChange={(e) => setBio(e.target.value)} />
             </div>
             <Button onClick={save} disabled={saving}>
-              {saving ? "Saving…" : "Save Changes"}
+              {saving ? "Saqlanmoqda…" : "O‘zgarishlarni saqlash"}
             </Button>
           </div>
         </section>
 
         <section className="surface-card p-6">
-          <h2 className="font-semibold">Skills</h2>
+          <h2 className="font-semibold">Ko‘nikmalar</h2>
 
           <div className="mt-4 space-y-2">
-            <Label htmlFor="teach">Skills I Can Teach</Label>
+            <Label htmlFor="teach">Men o‘rgata oladigan ko‘nikmalar</Label>
             <form
               className="flex gap-2"
               onSubmit={(e) => {
@@ -143,10 +143,10 @@ function ProfilePage() {
                 id="teach"
                 value={teachInput}
                 onChange={(e) => setTeachInput(e.target.value)}
-                placeholder="e.g. React"
+                placeholder="Masalan, React"
               />
               <Button type="submit" variant="secondary">
-                Add
+                Qo‘shish
               </Button>
             </form>
             <div className="pt-2">
@@ -159,7 +159,7 @@ function ProfilePage() {
           </div>
 
           <div className="mt-6 space-y-2">
-            <Label htmlFor="learn">Skills I Want To Learn</Label>
+            <Label htmlFor="learn">Men o‘rganmoqchi bo‘lgan ko‘nikmalar</Label>
             <form
               className="flex gap-2"
               onSubmit={(e) => {
@@ -171,10 +171,10 @@ function ProfilePage() {
                 id="learn"
                 value={learnInput}
                 onChange={(e) => setLearnInput(e.target.value)}
-                placeholder="e.g. SQL"
+                placeholder="Masalan, SQL"
               />
               <Button type="submit" variant="secondary">
-                Add
+                Qo‘shish
               </Button>
             </form>
             <div className="pt-2">

@@ -9,10 +9,10 @@ import { fetchMySessions, fetchProfiles, fetchWeeklyPoints, rankMatches } from "
 export const Route = createFileRoute("/matches")({
   head: () => ({
     meta: [
-      { title: "Find Your Match — PeerSwap" },
-      { name: "description", content: "Browse peers whose skills complement yours and request a swap." },
-      { property: "og:title", content: "Find Your Match — PeerSwap" },
-      { property: "og:description", content: "Browse peers whose skills complement yours and request a swap." },
+      { title: "Hamkor topish — PeerSwap" },
+      { name: "description", content: "Ko‘nikmalaringizga mos hamkorlarni toping va almashinuv so‘rovini yuboring." },
+      { property: "og:title", content: "Hamkor topish — PeerSwap" },
+      { property: "og:description", content: "Ko‘nikmalaringizga mos hamkorlarni toping va almashinuv so‘rovini yuboring." },
     ],
   }),
   component: MatchesPage,
@@ -44,20 +44,20 @@ function MatchesPage() {
 
   return (
     <AppShell>
-      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Find Your Match</h1>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Hamkor topish</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Ranked by how well your skills fit together.
+        Hamkorlar ko‘nikmalaringiz o‘zaro qanchalik mosligiga qarab tartiblangan.
       </p>
 
       {profilesQuery.isLoading ? (
-        <p className="mt-6 text-sm text-muted-foreground">Loading peers…</p>
+        <p className="mt-6 text-sm text-muted-foreground">Hamkorlar yuklanmoqda…</p>
       ) : matches.length === 0 ? (
         <div className="surface-card mt-6 p-6 text-sm text-muted-foreground">
-          No matches yet. Add skills on your{" "}
+          Hozircha mos hamkor yo‘q. Ko‘nikmalaringizni{" "}
           <Link to="/profile" className="text-primary hover:underline">
-            profile
+            profilingizga
           </Link>{" "}
-          to unlock recommendations.
+          qo‘shib, tavsiyalarni faollashtiring.
         </div>
       ) : (
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">

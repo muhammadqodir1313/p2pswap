@@ -11,10 +11,10 @@ import { useAuth } from "@/lib/auth";
 export const Route = createFileRoute("/signup")({
   head: () => ({
     meta: [
-      { title: "Sign up — PeerSwap" },
-      { name: "description", content: "Create a PeerSwap account and start swapping skills today." },
-      { property: "og:title", content: "Sign up — PeerSwap" },
-      { property: "og:description", content: "Create a PeerSwap account and start swapping skills today." },
+      { title: "Ro‘yxatdan o‘tish — PeerSwap" },
+      { name: "description", content: "PeerSwap hisobini yarating va ko‘nikma almashishni boshlang." },
+      { property: "og:title", content: "Ro‘yxatdan o‘tish — PeerSwap" },
+      { property: "og:description", content: "PeerSwap hisobini yarating va ko‘nikma almashishni boshlang." },
     ],
   }),
   component: SignupPage,
@@ -46,10 +46,10 @@ function SignupPage() {
     });
     setBusy(false);
     if (error) {
-      toast.error(error.message);
+      toast.error("Hisob yaratib bo‘lmadi. Ma’lumotlarni tekshirib, qayta urinib ko‘ring.");
       return;
     }
-    toast.success("Account created!");
+    toast.success("Hisob yaratildi!");
     navigate({ to: "/dashboard" });
   }
 
@@ -59,33 +59,33 @@ function SignupPage() {
         <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
           ← PeerSwap
         </Link>
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight">Create your account</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Teach a skill, learn a skill.</p>
+        <h1 className="mt-4 text-2xl font-semibold tracking-tight">Hisob yaratish</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Ko‘nikma o‘rgating va yangi ko‘nikma o‘rganing.</p>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="first">First name</Label>
+              <Label htmlFor="first">Ism</Label>
               <Input id="first" required value={firstName} onChange={(e) => setFirstName(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="last">Last name</Label>
+              <Label htmlFor="last">Familiya</Label>
               <Input id="last" required value={lastName} onChange={(e) => setLastName(e.target.value)} />
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Elektron pochta</Label>
             <Input
               id="email"
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder="siz@example.com"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Parol</Label>
             <Input
               id="password"
               type="password"
@@ -96,14 +96,14 @@ function SignupPage() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={busy}>
-            {busy ? "Creating…" : "Start Swapping"}
+            {busy ? "Yaratilmoqda…" : "Almashishni boshlash"}
           </Button>
         </form>
 
         <p className="mt-4 text-sm text-muted-foreground">
-          Already have an account?{" "}
+          Hisobingiz bormi?{" "}
           <Link to="/login" className="text-primary hover:underline">
-            Log in
+            Kirish
           </Link>
         </p>
       </div>
