@@ -20,17 +20,17 @@ import { fetchWeeklyPoints, updateMyPlan, type Plan } from "@/lib/peerswap";
 export const Route = createFileRoute("/subscription")({
   head: () => ({
     meta: [
-      { title: "Subscription Plans & Pricing — PeerSwap" },
+      { title: "Tariflar va narxlar — PeerSwap" },
       {
         name: "description",
         content:
-          "Choose the PeerSwap plan that fits your learning: Free with 3 PeerPoints a week, Premium with 15, or Pro with unlimited PeerPoints.",
+          "O‘rganishingizga mos PeerSwap tarifini tanlang: Bepul tarifda haftasiga 3, Premiumda 15, Pro tarifida cheksiz PeerPoint.",
       },
-      { property: "og:title", content: "Subscription Plans & Pricing — PeerSwap" },
+      { property: "og:title", content: "Tariflar va narxlar — PeerSwap" },
       {
         property: "og:description",
         content:
-          "Start free, upgrade when you need more. Compare Free, Premium and Pro PeerPoint allowances on PeerSwap.",
+          "Bepul boshlang, ko‘proq imkoniyat kerak bo‘lganda tarifni yangilang.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -56,57 +56,57 @@ type PlanCard = {
 const PLANS: PlanCard[] = [
   {
     id: "free",
-    name: "FREE",
+    name: "BEPUL",
     price: "0 so'm",
-    label: "Start for free",
-    points: "3 PeerPoints / week",
+    label: "Bepul boshlang",
+    points: "Haftasiga 3 PeerPoint",
     features: [
-      "3 PeerPoints per week",
-      "Basic skill matching",
-      "Find peers",
-      "Swap requests",
-      "Session feedback",
-      "Basic profile",
+      "Haftasiga 3 PeerPoint",
+      "Oddiy ko‘nikma moslashtirish",
+      "Hamkorlarni topish",
+      "Almashinuv so‘rovlari",
+      "Mashg‘ulotni baholash",
+      "Asosiy profil",
     ],
   },
   {
     id: "premium",
     name: "PREMIUM",
     price: "29,000 so'm",
-    period: "/ month",
-    badge: "Most Popular",
-    points: "15 PeerPoints / week",
+    period: "/ oyiga",
+    badge: "Eng ommabop",
+    points: "Haftasiga 15 PeerPoint",
     features: [
-      "15 PeerPoints per week",
-      "Priority matching",
-      "Unlimited peer discovery",
-      "Swap requests",
-      "Session feedback",
-      "Advanced skill discovery",
+      "Haftasiga 15 PeerPoint",
+      "Ustuvor moslashtirish",
+      "Cheksiz hamkor qidirish",
+      "Almashinuv so‘rovlari",
+      "Mashg‘ulotni baholash",
+      "Kengaytirilgan ko‘nikma qidiruvi",
     ],
     featured: true,
-    modalTitle: "Upgrade to Premium?",
+    modalTitle: "Premium tarifiga o‘tasizmi?",
     modalBody:
-      "Get 15 PeerPoints every week plus priority matching and advanced skill discovery.",
+      "Har hafta 15 PeerPoint, ustuvor moslashtirish va kengaytirilgan ko‘nikma qidiruviga ega bo‘ling.",
   },
   {
     id: "pro",
     name: "PRO",
     price: "59,000 so'm",
-    period: "/ month",
-    badge: "Power User",
-    points: "Unlimited PeerPoints",
+    period: "/ oyiga",
+    badge: "Faol foydalanuvchi",
+    points: "Cheksiz PeerPoint",
     features: [
-      "Unlimited PeerPoints",
-      "Advanced matching",
-      "Learning analytics",
-      "Skill progress tracking",
-      "Verified profile",
-      "Skill certificate",
-      "Priority support",
+      "Cheksiz PeerPoint",
+      "Kengaytirilgan moslashtirish",
+      "O‘rganish tahlillari",
+      "Ko‘nikma rivojini kuzatish",
+      "Tasdiqlangan profil",
+      "Ko‘nikma sertifikati",
+      "Ustuvor yordam",
     ],
-    modalTitle: "Upgrade to Pro?",
-    modalBody: "Unlock unlimited PeerPoints, analytics, verified profile and priority support.",
+    modalTitle: "Pro tarifiga o‘tasizmi?",
+    modalBody: "Cheksiz PeerPoint, tahlillar, tasdiqlangan profil va ustuvor yordamga ega bo‘ling.",
   },
 ];
 
@@ -137,7 +137,7 @@ function SubscriptionPage() {
       await queryClient.invalidateQueries({ queryKey: ["profiles"] });
       setStep("done");
     } catch {
-      toast.error("Could not change your plan. Please try again.");
+      toast.error("Tarifni o‘zgartirib bo‘lmadi. Qayta urinib ko‘ring.");
     } finally {
       setPending(false);
     }
@@ -146,31 +146,31 @@ function SubscriptionPage() {
   function usageLine(plan: Plan) {
     if (plan !== currentPlan) {
       return plan === "pro"
-        ? "Unlimited PeerPoints"
-        : `${plan === "premium" ? 15 : 3} PeerPoints every week`;
+        ? "Cheksiz PeerPoint"
+        : `Har hafta ${plan === "premium" ? 15 : 3} PeerPoint`;
     }
-    if (points?.allowance == null) return "Unlimited PeerPoints";
-    return `${points?.remaining ?? 0} / ${points?.allowance ?? 3} PeerPoints available this week`;
+    if (points?.allowance == null) return "Cheksiz PeerPoint";
+    return `${points?.remaining ?? 0} / ${points?.allowance ?? 3} PeerPoint shu hafta mavjud`;
   }
 
   function buttonLabel(plan: PlanCard) {
-    if (plan.id === currentPlan) return "Current Plan";
-    if (plan.id === "free") return "Downgrade";
-    return `Upgrade to ${plan.name.charAt(0) + plan.name.slice(1).toLowerCase()}`;
+    if (plan.id === currentPlan) return "Joriy tarif";
+    if (plan.id === "free") return "Bepul tarifga o‘tish";
+    return `${plan.name.charAt(0) + plan.name.slice(1).toLowerCase()} tarifiga o‘tish`;
   }
 
   return (
     <AppShell>
       <div className="text-center">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-4xl">
-          Choose the plan that fits your <span className="text-brand-gradient">learning</span>
+          O‘rganishingizga mos <span className="text-brand-gradient">tarifni tanlang</span>
         </h1>
         <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-          Start free, upgrade when you need more.
+          Bepul boshlang, ko‘proq imkoniyat kerak bo‘lganda tarifni yangilang.
         </p>
         {points?.allowance != null ? (
           <p className="mt-3 text-xs text-muted-foreground">
-            Resets in {points.daysUntilReset} {points.daysUntilReset === 1 ? "day" : "days"}
+            {points.daysUntilReset} kundan keyin yangilanadi
           </p>
         ) : null}
       </div>
@@ -229,7 +229,7 @@ function SubscriptionPage() {
                 onClick={() => {
                   if (plan.id === "free") {
                     void applyPlan("free");
-                    toast.success("You're back on the Free plan — 3 PeerPoints per week.");
+                    toast.success("Bepul tarifga o‘tdingiz — haftasiga 3 PeerPoint.");
                     return;
                   }
                   setStep("confirm");
@@ -244,8 +244,7 @@ function SubscriptionPage() {
       </div>
 
       <p className="mt-8 text-center text-xs text-muted-foreground">
-        This is an MVP — no payment is processed. Plan changes update your weekly PeerPoints right
-        away.
+        Bu sinov talqini — to‘lov olinmaydi. Tarif o‘zgartirilganda haftalik PeerPointlaringiz darhol yangilanadi.
       </p>
 
       <Dialog open={selected !== null} onOpenChange={(open) => !open && setSelected(null)}>
@@ -258,31 +257,30 @@ function SubscriptionPage() {
               </DialogHeader>
               <p className="text-2xl font-bold">
                 {selected?.price}
-                <span className="text-sm font-normal text-muted-foreground"> / month</span>
+                <span className="text-sm font-normal text-muted-foreground"> / oyiga</span>
               </p>
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setSelected(null)}>
-                  Cancel
+                  Bekor qilish
                 </Button>
                 <Button
                   disabled={pending}
                   onClick={() => selected && void applyPlan(selected.id)}
                 >
-                  {pending ? "Please wait…" : "Continue"}
+                  {pending ? "Kuting…" : "Davom etish"}
                 </Button>
               </DialogFooter>
             </>
           ) : (
             <>
               <DialogHeader>
-                <DialogTitle>Coming soon</DialogTitle>
+                <DialogTitle>Tez orada</DialogTitle>
                 <DialogDescription>
-                  Payments will be available soon. Your interest has been recorded and your plan is
-                  active for this demo.
+                  To‘lovlar tez orada ishga tushadi. Qiziqishingiz qayd etildi va tarifingiz ushbu demo uchun faollashtirildi.
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
-                <Button onClick={() => setSelected(null)}>Close</Button>
+                <Button onClick={() => setSelected(null)}>Yopish</Button>
               </DialogFooter>
             </>
           )}
