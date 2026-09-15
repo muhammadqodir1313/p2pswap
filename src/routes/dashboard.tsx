@@ -15,6 +15,8 @@ export const Route = createFileRoute("/dashboard")({
       { name: "description", content: "Haftalik PeerPointlar, ko‘nikmalar va tavsiya etilgan hamkorlar." },
       { property: "og:title", content: "Bosh sahifa — PeerSwap" },
       { property: "og:description", content: "Haftalik PeerPointlar, ko‘nikmalar va tavsiya etilgan hamkorlar." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: DashboardPage,

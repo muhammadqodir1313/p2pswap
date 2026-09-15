@@ -20,6 +20,8 @@ export const Route = createFileRoute("/profile")({
       { name: "description", content: "PeerSwap profilingiz va ko‘nikmalaringizni tahrirlang." },
       { property: "og:title", content: "Mening profilim — PeerSwap" },
       { property: "og:description", content: "PeerSwap profilingiz va ko‘nikmalaringizni tahrirlang." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: ProfilePage,

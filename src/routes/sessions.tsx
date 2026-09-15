@@ -22,10 +22,12 @@ import {
 export const Route = createFileRoute("/sessions")({
   head: () => ({
     meta: [
-      { title: "My Sessions — PeerSwap" },
-      { name: "description", content: "Track your pending, upcoming and completed skill swap sessions." },
-      { property: "og:title", content: "My Sessions — PeerSwap" },
-      { property: "og:description", content: "Track your pending, upcoming and completed skill swaps." },
+      { title: "Mashg‘ulotlarim — PeerSwap" },
+      { name: "description", content: "Kutilayotgan, rejalashtirilgan va yakunlangan almashinuvlarni kuzating." },
+      { property: "og:title", content: "Mashg‘ulotlarim — PeerSwap" },
+      { property: "og:description", content: "Kutilayotgan, rejalashtirilgan va yakunlangan almashinuvlarni kuzating." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: SessionsPage,
@@ -65,25 +67,25 @@ function SessionsPage() {
 
   return (
     <AppShell>
-      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">My Sessions</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Every swap you requested or received.</p>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Mashg‘ulotlarim</h1>
+      <p className="mt-1 text-sm text-muted-foreground">Siz yuborgan yoki qabul qilgan barcha almashinuvlar.</p>
 
       <Tabs defaultValue="pending" className="mt-6">
         <TabsList>
-          <TabsTrigger value="pending">Pending ({byStatus("pending").length})</TabsTrigger>
-          <TabsTrigger value="accepted">Upcoming ({byStatus("accepted").length})</TabsTrigger>
-          <TabsTrigger value="completed">Completed ({byStatus("completed").length})</TabsTrigger>
+          <TabsTrigger value="pending">Kutilmoqda ({byStatus("pending").length})</TabsTrigger>
+          <TabsTrigger value="accepted">Rejalashtirilgan ({byStatus("accepted").length})</TabsTrigger>
+          <TabsTrigger value="completed">Yakunlangan ({byStatus("completed").length})</TabsTrigger>
         </TabsList>
 
         {(["pending", "accepted", "completed"] as const).map((status) => (
           <TabsContent key={status} value={status} className="mt-4 space-y-4">
             {byStatus(status).length === 0 ? (
               <div className="surface-card p-6 text-sm text-muted-foreground">
-                Nothing here yet.{" "}
+                Hozircha hech narsa yo‘q. Almashinuvni boshlash uchun{" "}
                 <Link to="/matches" className="text-primary hover:underline">
-                  Find a match
+                  hamkor toping
                 </Link>{" "}
-                to start a swap.
+                .
               </div>
             ) : (
               byStatus(status).map((session) => (
@@ -135,7 +137,7 @@ function SessionCard({
       toast.error(error.message);
       return;
     }
-    toast.success("Swap accepted!");
+    toast.success("Almashinuv qabul qilindi!");
     onChanged();
   }
 
@@ -147,7 +149,7 @@ function SessionCard({
       toast.error(error.message);
       return;
     }
-    toast.success("Session completed!");
+    toast.success("Mashg‘ulot yakunlandi!");
     onChanged();
   }
 
@@ -159,30 +161,30 @@ function SessionCard({
             {mySkill} <span className="text-accent">↔</span> {theirSkill}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Partner: {partner ? fullName(partner) : "PeerSwap member"} · {formatDate(session.created_at)}
+            Hamkor: {partner ? fullName(partner) : "PeerSwap a’zosi"} · {formatDate(session.created_at)}
           </p>
         </div>
         <span className="rounded-full border border-border bg-secondary px-3 py-1 text-xs capitalize text-muted-foreground">
-          {session.status}
+          {session.status === "pending" ? "Kutilmoqda" : session.status === "accepted" ? "Qabul qilingan" : "Yakunlangan"}
         </span>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
         {session.status === "pending" ? (
           <Button size="sm" onClick={accept} disabled={busy}>
-            {isRequester ? "Accept on behalf (demo)" : "Accept request"}
+            {isRequester ? "Hamkor nomidan qabul qilish (demo)" : "So‘rovni qabul qilish"}
           </Button>
         ) : null}
         {session.status === "accepted" ? (
           <Button size="sm" onClick={complete} disabled={busy}>
-            Mark as Completed
+            Yakunlangan deb belgilash
           </Button>
         ) : null}
       </div>
 
       {session.status === "completed" ? (
         hasFeedback ? (
-          <p className="mt-4 text-sm text-accent">Thanks for your feedback!</p>
+          <p className="mt-4 text-sm text-accent">Fikr-mulohazangiz uchun rahmat!</p>
         ) : (
           <FeedbackForm sessionId={session.id} meId={meId} onDone={onChanged} />
         )
@@ -214,19 +216,19 @@ function FeedbackForm({
       toast.error(error.message);
       return;
     }
-    toast.success("Thanks for your feedback!");
+    toast.success("Fikr-mulohazangiz uchun rahmat!");
     onDone();
   }
 
   return (
     <div className="mt-4 border-t border-border pt-4">
-      <p className="text-sm font-medium">How was your session?</p>
+      <p className="text-sm font-medium">Mashg‘ulot qanday o‘tdi?</p>
       <div className="mt-2 flex gap-1">
         {[1, 2, 3, 4, 5].map((value) => (
           <button
             key={value}
             type="button"
-            aria-label={`${value} star`}
+            aria-label={`${value} yulduz`}
             onClick={() => setRating(value)}
             className="transition-transform hover:scale-110"
           >
@@ -240,12 +242,12 @@ function FeedbackForm({
       </div>
       <Textarea
         className="mt-3"
-        placeholder="Optional feedback"
+        placeholder="Ixtiyoriy fikr-mulohaza"
         value={comment}
         onChange={(e) => setComment(e.target.value)}
       />
       <Button size="sm" className="mt-3" onClick={submit} disabled={busy}>
-        Submit Feedback
+        Fikrni yuborish
       </Button>
     </div>
   );

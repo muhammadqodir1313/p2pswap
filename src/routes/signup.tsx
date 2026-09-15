@@ -15,6 +15,8 @@ export const Route = createFileRoute("/signup")({
       { name: "description", content: "PeerSwap hisobini yarating va ko‘nikma almashishni boshlang." },
       { property: "og:title", content: "Ro‘yxatdan o‘tish — PeerSwap" },
       { property: "og:description", content: "PeerSwap hisobini yarating va ko‘nikma almashishni boshlang." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: SignupPage,

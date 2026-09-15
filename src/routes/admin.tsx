@@ -13,10 +13,12 @@ export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
       { title: "Admin — PeerSwap" },
-      { name: "description", content: "PeerSwap admin overview of users, sessions and feedback." },
+      { name: "description", content: "PeerSwap foydalanuvchilari, mashg‘ulotlari va fikr-mulohazalarini boshqarish." },
       { name: "robots", content: "noindex" },
       { property: "og:title", content: "Admin — PeerSwap" },
-      { property: "og:description", content: "PeerSwap admin overview." },
+      { property: "og:description", content: "PeerSwap boshqaruv sahifasi." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: AdminPage,
@@ -85,7 +87,7 @@ function AdminPage() {
   if (roleQuery.isLoading) {
     return (
       <AppShell>
-        <p className="text-sm text-muted-foreground">Checking access…</p>
+        <p className="text-sm text-muted-foreground">Ruxsat tekshirilmoqda…</p>
       </AppShell>
     );
   }
@@ -94,13 +96,13 @@ function AdminPage() {
     return (
       <AppShell>
         <div className="surface-card p-8 text-center">
-          <h1 className="text-xl font-semibold">Admins only</h1>
+          <h1 className="text-xl font-semibold">Faqat administratorlar uchun</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            This area is restricted. Head back to your{" "}
+            Bu sahifaga kirish cheklangan. O‘z{" "}
             <Link to="/dashboard" className="text-primary hover:underline">
-              dashboard
+              bosh sahifangizga
             </Link>
-            .
+            qayting.
           </p>
         </div>
       </AppShell>
@@ -113,7 +115,7 @@ function AdminPage() {
   const totalSkills = new Set(profiles.flatMap((p) => [...p.teach, ...p.learn])).size;
   const nameOf = (id: string) => {
     const p = profiles.find((x) => x.id === id);
-    return p ? fullName(p) : "Unknown";
+    return p ? fullName(p) : "Noma’lum";
   };
 
   async function deactivate(id: string, active: boolean) {
@@ -122,26 +124,26 @@ function AdminPage() {
       toast.error(error.message);
       return;
     }
-    toast.success(active ? "User deactivated" : "User reactivated");
+    toast.success(active ? "Foydalanuvchi faolsizlantirildi" : "Foydalanuvchi qayta faollashtirildi");
     profilesQuery.refetch();
   }
 
   return (
     <AppShell>
-      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Admin Dashboard</h1>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Boshqaruv paneli</h1>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Total Users" value={profiles.length} />
-        <Stat label="Total Sessions" value={sessions.length} />
-        <Stat label="Completed Sessions" value={sessions.filter((s) => s.status === "completed").length} />
-        <Stat label="Total Skills" value={totalSkills} />
+        <Stat label="Jami foydalanuvchilar" value={profiles.length} />
+        <Stat label="Jami mashg‘ulotlar" value={sessions.length} />
+        <Stat label="Yakunlangan mashg‘ulotlar" value={sessions.filter((s) => s.status === "completed").length} />
+        <Stat label="Jami ko‘nikmalar" value={totalSkills} />
       </div>
 
       <Tabs defaultValue="users" className="mt-8">
         <TabsList>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="sessions">Sessions</TabsTrigger>
-          <TabsTrigger value="feedback">Feedback</TabsTrigger>
+          <TabsTrigger value="users">Foydalanuvchilar</TabsTrigger>
+          <TabsTrigger value="sessions">Mashg‘ulotlar</TabsTrigger>
+          <TabsTrigger value="feedback">Fikr-mulohazalar</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="mt-4 space-y-3">
@@ -150,14 +152,14 @@ function AdminPage() {
               <div>
                 <p className="font-medium">
                   {fullName(p)}{" "}
-                  {!p.is_active ? <span className="text-xs text-destructive">(deactivated)</span> : null}
+                  {!p.is_active ? <span className="text-xs text-destructive">(faolsiz)</span> : null}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {p.peercoins} PeerCoin · teaches {p.teach.length} · wants {p.learn.length}
+                  {p.peercoins} PeerPoint · o‘rgatadi: {p.teach.length} · o‘rganadi: {p.learn.length}
                 </p>
               </div>
               <Button size="sm" variant="outline" onClick={() => deactivate(p.id, p.is_active)}>
-                {p.is_active ? "Deactivate" : "Reactivate"}
+                {p.is_active ? "Faolsizlantirish" : "Faollashtirish"}
               </Button>
             </div>
           ))}
@@ -165,7 +167,7 @@ function AdminPage() {
 
         <TabsContent value="sessions" className="mt-4 space-y-3">
           {sessions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No sessions yet.</p>
+            <p className="text-sm text-muted-foreground">Hozircha mashg‘ulotlar yo‘q.</p>
           ) : (
             sessions.map((s) => (
               <div key={s.id} className="surface-card p-4">
@@ -182,7 +184,7 @@ function AdminPage() {
 
         <TabsContent value="feedback" className="mt-4 space-y-3">
           {feedback.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No feedback yet.</p>
+            <p className="text-sm text-muted-foreground">Hozircha fikr-mulohazalar yo‘q.</p>
           ) : (
             feedback.map((f) => (
               <div key={f.id} className="surface-card p-4">
@@ -190,7 +192,7 @@ function AdminPage() {
                   {"★".repeat(f.rating)}
                   <span className="text-muted-foreground">{"★".repeat(5 - f.rating)}</span>
                 </p>
-                <p className="mt-1 text-sm">{f.comment || "No comment"}</p>
+                <p className="mt-1 text-sm">{f.comment || "Izoh yo‘q"}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {nameOf(f.user_id)} · {formatDate(f.created_at)}
                 </p>
