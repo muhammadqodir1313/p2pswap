@@ -13,6 +13,8 @@ export const Route = createFileRoute("/matches")({
       { name: "description", content: "Ko‘nikmalaringizga mos hamkorlarni toping va almashinuv so‘rovini yuboring." },
       { property: "og:title", content: "Hamkor topish — PeerSwap" },
       { property: "og:description", content: "Ko‘nikmalaringizga mos hamkorlarni toping va almashinuv so‘rovini yuboring." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: MatchesPage,

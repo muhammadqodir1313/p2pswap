@@ -26,6 +26,8 @@ export const Route = createFileRoute("/sessions")({
       { name: "description", content: "Kutilayotgan, rejalashtirilgan va yakunlangan almashinuvlarni kuzating." },
       { property: "og:title", content: "Mashg‘ulotlarim — PeerSwap" },
       { property: "og:description", content: "Kutilayotgan, rejalashtirilgan va yakunlangan almashinuvlarni kuzating." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: SessionsPage,
