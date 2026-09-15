@@ -51,6 +51,13 @@ export type Database = {
             foreignKeyName: "feedback_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "peer_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -79,6 +86,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "peercoin_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "peer_directory"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "peercoin_transactions_user_id_fkey"
             columns: ["user_id"]
@@ -169,7 +183,21 @@ export type Database = {
             foreignKeyName: "swap_sessions_partner_id_fkey"
             columns: ["partner_id"]
             isOneToOne: false
+            referencedRelation: "peer_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "swap_sessions_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "swap_sessions_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "peer_directory"
             referencedColumns: ["id"]
           },
           {
@@ -226,6 +254,13 @@ export type Database = {
             foreignKeyName: "user_skills_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "peer_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_skills_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -233,7 +268,45 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      peer_directory: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string | null
+          first_name: string | null
+          id: string | null
+          is_active: boolean | null
+          is_demo: boolean | null
+          last_name: string | null
+          learn: string[] | null
+          teach: string[] | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          is_demo?: boolean | null
+          last_name?: string | null
+          learn?: never
+          teach?: never
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          is_demo?: boolean | null
+          last_name?: string | null
+          learn?: never
+          teach?: never
+        }
+        Relationships: []
+      }
     }
     Functions: {
       complete_session: { Args: { _session_id: string }; Returns: undefined }
