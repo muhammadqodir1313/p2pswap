@@ -29,6 +29,13 @@
       "when": 1789198352979,
       "tag": "0003_plan_peerpoints",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789480020994,
+      "tag": "0004_harden_profiles_skills_and_functions",
+      "breakpoints": true
     }
   ]
 }

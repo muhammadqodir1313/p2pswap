@@ -27,44 +27,43 @@ export type SwapSession = {
 };
 
 type RawProfile = {
-  id: string;
-  first_name: string;
-  last_name: string;
-  bio: string;
-  peercoins: number;
-  is_active: boolean;
-  is_demo: boolean;
-  created_at: string;
-  user_skills?: { skill: string; kind: string }[] | null;
+  id: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  bio: string | null;
+  is_active: boolean | null;
+  is_demo: boolean | null;
+  created_at: string | null;
+  teach: string[] | null;
+  learn: string[] | null;
 };
 
 function mapProfile(row: RawProfile): ProfileWithSkills {
-  const skills = row.user_skills ?? [];
   return {
-    id: row.id,
-    first_name: row.first_name,
-    last_name: row.last_name,
-    bio: row.bio,
-    peercoins: row.peercoins,
-    is_active: row.is_active,
-    is_demo: row.is_demo,
-    created_at: row.created_at,
-    teach: skills.filter((s) => s.kind === "teach").map((s) => s.skill),
-    learn: skills.filter((s) => s.kind === "learn").map((s) => s.skill),
+    id: row.id ?? "",
+    first_name: row.first_name ?? "",
+    last_name: row.last_name ?? "",
+    bio: row.bio ?? "",
+    peercoins: 0,
+    is_active: row.is_active ?? true,
+    is_demo: row.is_demo ?? false,
+    created_at: row.created_at ?? new Date().toISOString(),
+    teach: row.teach ?? [],
+    learn: row.learn ?? [],
   };
 }
 
-const PROFILE_SELECT = "id, first_name, last_name, bio, peercoins, is_active, is_demo, created_at, user_skills(skill, kind)";
+const PROFILE_SELECT = "id, first_name, last_name, bio, is_active, is_demo, created_at, teach, learn";
 
 export async function fetchProfiles(): Promise<ProfileWithSkills[]> {
-  const { data, error } = await supabase.from("profiles").select(PROFILE_SELECT);
+  const { data, error } = await supabase.from("peer_directory").select(PROFILE_SELECT);
   if (error) throw error;
   return ((data ?? []) as RawProfile[]).map(mapProfile);
 }
 
 export async function fetchProfile(id: string): Promise<ProfileWithSkills | null> {
   const { data, error } = await supabase
-    .from("profiles")
+    .from("peer_directory")
     .select(PROFILE_SELECT)
     .eq("id", id)
     .maybeSingle();
