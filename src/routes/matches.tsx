@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
+import { AiMatchFinder } from "@/components/AiMatchFinder";
 import { AppShell } from "@/components/AppHeader";
 import { MatchCard } from "@/components/MatchCard";
 import { useAuth, useRequireAuth } from "@/lib/auth";
