@@ -52,6 +52,17 @@ function MatchesPage() {
         Hamkorlar ko‘nikmalaringiz o‘zaro qanchalik mosligiga qarab tartiblangan.
       </p>
 
+      <AiMatchFinder
+        me={me}
+        profiles={profiles}
+        requestedIds={requestedIds}
+        pointsLeft={pointsQuery.data?.remaining ?? null}
+        onRequested={() => {
+          void sessionsQuery.refetch();
+          void pointsQuery.refetch();
+        }}
+      />
+
       {profilesQuery.isLoading ? (
         <p className="mt-6 text-sm text-muted-foreground">Hamkorlar yuklanmoqda…</p>
       ) : matches.length === 0 ? (
