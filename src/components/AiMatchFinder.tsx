@@ -90,7 +90,7 @@ export function AiMatchFinder({
                       match={{ ...skills, score: rec.score, label: rec.reason }}
                       meId={me?.id ?? ""}
                       alreadyRequested={requestedIds.has(rec.id)}
-                      pointsLeft={pointsLeft}
+                      pointsLeft={pointsLeft ?? null}
                       onRequested={onRequested}
                     />
                   </div>
