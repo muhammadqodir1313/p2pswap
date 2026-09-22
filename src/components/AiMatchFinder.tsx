@@ -91,7 +91,7 @@ export function AiMatchFinder({
                       meId={me?.id ?? ""}
                       alreadyRequested={requestedIds.has(rec.id)}
                       pointsLeft={pointsLeft ?? null}
-                      onRequested={onRequested}
+                      onRequested={() => onRequested?.()}
                     />
                   </div>
                 );
