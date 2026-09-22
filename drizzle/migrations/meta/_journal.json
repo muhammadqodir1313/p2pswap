@@ -36,6 +36,13 @@
       "when": 1789480020994,
       "tag": "0004_harden_profiles_skills_and_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790067613668,
+      "tag": "0005_harden_admin_bootstrap_and_profile_writes",
+      "breakpoints": true
     }
   ]
 }

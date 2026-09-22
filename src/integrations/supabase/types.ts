@@ -326,6 +326,10 @@ export type Database = {
           week_start: string
         }[]
       }
+      set_profile_active: {
+        Args: { _active: boolean; _user_id: string }
+        Returns: undefined
+      }
       spend_peerpoint: { Args: never; Returns: number }
       weekly_allowance_for: { Args: { _plan: string }; Returns: number }
     }
