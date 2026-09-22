@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
+import { AiMatchFinder } from "@/components/AiMatchFinder";
 import { AppShell } from "@/components/AppHeader";
 import { MatchCard } from "@/components/MatchCard";
 import { useAuth, useRequireAuth } from "@/lib/auth";
@@ -50,6 +51,17 @@ function MatchesPage() {
       <p className="mt-1 text-sm text-muted-foreground">
         Hamkorlar ko‘nikmalaringiz o‘zaro qanchalik mosligiga qarab tartiblangan.
       </p>
+
+      <AiMatchFinder
+        me={me}
+        profiles={profiles}
+        requestedIds={requestedIds}
+        pointsLeft={pointsQuery.data?.remaining ?? null}
+        onRequested={() => {
+          void sessionsQuery.refetch();
+          void pointsQuery.refetch();
+        }}
+      />
 
       {profilesQuery.isLoading ? (
         <p className="mt-6 text-sm text-muted-foreground">Hamkorlar yuklanmoqda…</p>
