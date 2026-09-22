@@ -119,7 +119,7 @@ function AdminPage() {
   };
 
   async function deactivate(id: string, active: boolean) {
-    const { error } = await supabase.from("profiles").update({ is_active: !active }).eq("id", id);
+    const { error } = await supabase.rpc("set_profile_active", { _user_id: id, _active: !active });
     if (error) {
       toast.error(error.message);
       return;
