@@ -1,14 +1,24 @@
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Sparkles } from "lucide-react";
+import { RefreshCw, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { MatchCard } from "@/components/MatchCard";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { recommendPartners, type RecommendPartnersResult } from "@/lib/ai-match.functions";
+import {
+  recommendPartners,
+  type RecommendPartnersResult,
+  type RecommendQuality,
+} from "@/lib/ai-match.functions";
 import { matchScore, type ProfileWithSkills } from "@/lib/peerswap";
+
+const QUALITY_OPTIONS: Array<{ value: RecommendQuality; label: string; hint: string }> = [
+  { value: "fast", label: "Tez", hint: "Qisqa izohlar, eng tez natija" },
+  { value: "balanced", label: "Muvozanatli", hint: "Sifat va tezlik o‘rtasida" },
+  { value: "deep", label: "Chuqur", hint: "Batafsil tahlil, sekinroq" },
+];
 
 export function AiMatchFinder({
   me,
@@ -24,15 +34,25 @@ export function AiMatchFinder({
   onRequested?: () => void;
 }) {
   const [need, setNeed] = useState("");
+  const [quality, setQuality] = useState<RecommendQuality>("balanced");
   const recommend = useServerFn(recommendPartners);
 
-  const mutation = useMutation<RecommendPartnersResult, Error, string>({
-    mutationFn: (value) => recommend({ data: { need: value } }),
+  const mutation = useMutation<RecommendPartnersResult, Error, { need: string; quality: RecommendQuality }>({
+    mutationFn: (value) => recommend({ data: value }),
     onError: () => toast.error("Tavsiyalarni olishning iloji bo‘lmadi. Birozdan so‘ng qayta urinib ko‘ring."),
   });
 
   const result = mutation.data;
   const byId = new Map(profiles.map((p) => [p.id, p]));
+
+  const run = (nextQuality: RecommendQuality) => {
+    const value = need.trim();
+    if (value.length < 3) {
+      toast.error("Ehtiyojingizni bir-ikki jumlada yozing.");
+      return;
+    }
+    mutation.mutate({ need: value, quality: nextQuality });
+  };
 
   return (
     <section className="surface-card mt-6 p-6">
@@ -48,12 +68,7 @@ export function AiMatchFinder({
         className="mt-4 space-y-3"
         onSubmit={(e) => {
           e.preventDefault();
-          const value = need.trim();
-          if (value.length < 3) {
-            toast.error("Ehtiyojingizni bir-ikki jumlada yozing.");
-            return;
-          }
-          mutation.mutate(value);
+          run(quality);
         }}
       >
         <Textarea
@@ -63,9 +78,43 @@ export function AiMatchFinder({
           maxLength={600}
           placeholder="Masalan: Men React’ni chuqurroq o‘rganmoqchiman, buning evaziga ingliz tilida gapirishni o‘rgata olaman."
         />
-        <Button type="submit" disabled={mutation.isPending}>
-          {mutation.isPending ? "Tavsiyalar tayyorlanmoqda…" : "Mos hamkorlarni topish"}
-        </Button>
+
+        <div>
+          <p className="text-sm font-medium">Tavsiya sifati</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {QUALITY_OPTIONS.map((opt) => (
+              <Button
+                key={opt.value}
+                type="button"
+                variant={quality === opt.value ? "default" : "outline"}
+                size="sm"
+                title={opt.hint}
+                aria-pressed={quality === opt.value}
+                onClick={() => {
+                  setQuality(opt.value);
+                  if (result || mutation.isError) run(opt.value);
+                }}
+              >
+                {opt.label}
+              </Button>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {QUALITY_OPTIONS.find((o) => o.value === quality)?.hint}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={mutation.isPending}>
+            {mutation.isPending ? "Tavsiyalar tayyorlanmoqda…" : "Mos hamkorlarni topish"}
+          </Button>
+          {result || mutation.isError ? (
+            <Button type="button" variant="outline" disabled={mutation.isPending} onClick={() => run(quality)}>
+              <RefreshCw className={`size-4 ${mutation.isPending ? "animate-spin" : ""}`} aria-hidden />
+              Qayta o‘qish
+            </Button>
+          ) : null}
+        </div>
       </form>
 
       {result ? (
