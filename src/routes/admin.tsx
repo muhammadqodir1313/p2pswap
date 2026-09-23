@@ -141,6 +141,7 @@ function AdminPage() {
   const profiles = profilesQuery.data ?? [];
   const sessions = sessionsQuery.data ?? [];
   const feedback = feedbackQuery.data ?? [];
+  const aiRecs = aiQuery.data ?? [];
   const totalSkills = new Set(profiles.flatMap((p) => [...p.teach, ...p.learn])).size;
   const nameOf = (id: string) => {
     const p = profiles.find((x) => x.id === id);
@@ -226,6 +227,33 @@ function AdminPage() {
                 <p className="mt-1 text-xs text-muted-foreground">
                   {nameOf(f.user_id)} · {formatDate(f.created_at)}
                 </p>
+              </div>
+            ))
+          )}
+        </TabsContent>
+
+        <TabsContent value="ai" className="mt-4 space-y-3">
+          {aiQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Yuklanmoqda…</p>
+          ) : aiRecs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Hozircha AI tavsiyalari yo‘q.</p>
+          ) : (
+            aiRecs.map((r) => (
+              <div key={r.id} className="surface-card p-4">
+                <p className="text-xs text-muted-foreground">
+                  {nameOf(r.user_id)} · {QUALITY_LABEL[r.quality] ?? r.quality} · {formatDate(r.created_at)}
+                </p>
+                <p className="mt-1 text-sm font-medium">“{r.need}”</p>
+                {r.note ? <p className="mt-1 text-sm text-muted-foreground">{r.note}</p> : null}
+                <ul className="mt-2 space-y-1 text-sm">
+                  {(r.recommendations ?? []).map((rec, i) => (
+                    <li key={`${r.id}-${rec.id}-${i}`}>
+                      <span className="font-medium">{nameOf(rec.id)}</span>{" "}
+                      <span className="text-accent">{rec.score}%</span>{" "}
+                      <span className="text-muted-foreground">— {rec.reason}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             ))
           )}
