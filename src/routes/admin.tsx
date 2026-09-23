@@ -85,6 +85,19 @@ function AdminPage() {
     },
     enabled: !!user && roleQuery.data === true,
   });
+  const aiQuery = useQuery({
+    queryKey: ["admin-ai-recommendations"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ai_recommendations")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (data ?? []) as unknown as AiRecommendationRow[];
+    },
+    enabled: !!user && roleQuery.data === true,
+  });
   const feedbackQuery = useQuery({
     queryKey: ["admin-feedback"],
     queryFn: async () => {
@@ -160,6 +173,7 @@ function AdminPage() {
           <TabsTrigger value="users">Foydalanuvchilar</TabsTrigger>
           <TabsTrigger value="sessions">Mashg‘ulotlar</TabsTrigger>
           <TabsTrigger value="feedback">Fikr-mulohazalar</TabsTrigger>
+          <TabsTrigger value="ai">AI tavsiyalari</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="mt-4 space-y-3">
