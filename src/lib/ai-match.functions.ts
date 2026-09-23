@@ -135,15 +135,24 @@ export const recommendPartners = createServerFn({ method: "POST" })
     const output = await result.output;
     const valid = new Set(candidates.map((c) => c.id));
 
-    return {
-      recommendations: output.recommendations
-        .filter((r) => valid.has(r.id))
-        .slice(0, 5)
-        .map((r) => ({
-          id: r.id,
-          score: Math.max(0, Math.min(100, Math.round(r.score))),
-          reason: r.reason,
-        })),
+    const recommendations = output.recommendations
+      .filter((r) => valid.has(r.id))
+      .slice(0, 5)
+      .map((r) => ({
+        id: r.id,
+        score: Math.max(0, Math.min(100, Math.round(r.score))),
+        reason: r.reason,
+      }));
+
+    // Tavsiyalarni tarix uchun saqlaymiz (RLS: faqat egasi va admin o‘qiy oladi).
+    const { error: saveError } = await supabase.from("ai_recommendations").insert({
+      user_id: userId,
+      need: data.need,
+      quality: data.quality,
       note: output.note,
-    };
+      recommendations,
+    });
+    if (saveError) console.error("ai_recommendations insert failed", saveError.message);
+
+    return { recommendations, note: output.note };
   });
