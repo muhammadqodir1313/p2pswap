@@ -43,6 +43,13 @@
       "when": 1790067613668,
       "tag": "0005_harden_admin_bootstrap_and_profile_writes",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790148634913,
+      "tag": "0006_create_ai_recommendations",
+      "breakpoints": true
     }
   ]
 }
