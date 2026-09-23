@@ -59,6 +59,80 @@ export type Database = {
           },
         ]
       }
+      calendar_slots: {
+        Row: {
+          created_at: string
+          description: string
+          ends_at: string
+          id: string
+          is_online: boolean
+          kind: string
+          owner_id: string
+          partner_id: string | null
+          peerpoint_cost: number
+          skill: string
+          starts_at: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          ends_at: string
+          id?: string
+          is_online?: boolean
+          kind?: string
+          owner_id: string
+          partner_id?: string | null
+          peerpoint_cost?: number
+          skill?: string
+          starts_at: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          ends_at?: string
+          id?: string
+          is_online?: boolean
+          kind?: string
+          owner_id?: string
+          partner_id?: string | null
+          peerpoint_cost?: number
+          skill?: string
+          starts_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_slots_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "peer_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_slots_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_slots_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "peer_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_slots_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback: {
         Row: {
           comment: string
@@ -362,6 +436,29 @@ export type Database = {
         }
         Returns: boolean
       }
+      join_calendar_slot: {
+        Args: { _slot_id: string }
+        Returns: {
+          created_at: string
+          description: string
+          ends_at: string
+          id: string
+          is_online: boolean
+          kind: string
+          owner_id: string
+          partner_id: string | null
+          peerpoint_cost: number
+          skill: string
+          starts_at: string
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "calendar_slots"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       refresh_weekly_points: {
         Args: { _user_id: string }
         Returns: {
@@ -370,6 +467,29 @@ export type Database = {
           used: number
           week_start: string
         }[]
+      }
+      set_calendar_slot_status: {
+        Args: { _slot_id: string; _status: string }
+        Returns: {
+          created_at: string
+          description: string
+          ends_at: string
+          id: string
+          is_online: boolean
+          kind: string
+          owner_id: string
+          partner_id: string | null
+          peerpoint_cost: number
+          skill: string
+          starts_at: string
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "calendar_slots"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       set_profile_active: {
         Args: { _active: boolean; _user_id: string }
