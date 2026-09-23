@@ -106,6 +106,11 @@ export const recommendPartners = createServerFn({ method: "POST" })
         "`score` 0 dan 100 gacha butun son. `reason` va `note` faqat o‘zbek tilida, qisqa (1-2 jumla).",
         "Nomzodning o‘rgata oladigan ko‘nikmasi foydalanuvchi ehtiyojiga mos kelishi asosiy mezon;",
         "ikki tomonlama almashinuv imkoniyati (foydalanuvchi o‘rgata oladigan narsa nomzodga kerak bo‘lishi) qo‘shimcha ustunlik beradi.",
+        data.quality === "fast"
+          ? "Tez javob bering: eng aniq 3 ta nomzodni qisqa izoh bilan ko‘rsating."
+          : data.quality === "deep"
+            ? "Chuqur tahlil qiling: har bir nomzodning kuchli va zaif tomonlarini hisobga olib, izohda aynan qaysi ko‘nikma mos kelishini yozing."
+            : "Muvozanatli tahlil qiling: mos ko‘nikmani va almashinuv imkoniyatini izohda aniq ko‘rsating.",
       ].join(" "),
       prompt: JSON.stringify({
         user: {
