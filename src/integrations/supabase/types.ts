@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_recommendations: {
+        Row: {
+          created_at: string
+          id: string
+          need: string
+          note: string
+          quality: string
+          recommendations: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          need: string
+          note?: string
+          quality?: string
+          recommendations?: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          need?: string
+          note?: string
+          quality?: string
+          recommendations?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_recommendations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "peer_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_recommendations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback: {
         Row: {
           comment: string
