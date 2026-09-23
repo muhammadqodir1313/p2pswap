@@ -33,6 +33,22 @@ type FeedbackRow = {
   created_at: string;
 };
 
+type AiRecommendationRow = {
+  id: string;
+  user_id: string;
+  need: string;
+  quality: string;
+  note: string;
+  recommendations: Array<{ id: string; score: number; reason: string }>;
+  created_at: string;
+};
+
+const QUALITY_LABEL: Record<string, string> = {
+  fast: "Tez",
+  balanced: "Muvozanatli",
+  deep: "Chuqur",
+};
+
 function AdminPage() {
   const { user } = useRequireAuth();
   const { loading } = useAuth();
