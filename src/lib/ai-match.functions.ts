@@ -8,7 +8,16 @@ import { createLovableAiGatewayRunIdFetch } from "./ai-gateway.server";
 
 const RecommendInput = z.object({
   need: z.string().min(3).max(600),
+  quality: z.enum(["fast", "balanced", "deep"]).default("balanced"),
 });
+
+export type RecommendQuality = "fast" | "balanced" | "deep";
+
+const EFFORT: Record<RecommendQuality, "low" | "medium" | "high"> = {
+  fast: "low",
+  balanced: "medium",
+  deep: "high",
+};
 
 const RecommendationSchema = z.object({
   recommendations: z.array(
@@ -110,7 +119,7 @@ export const recommendPartners = createServerFn({ method: "POST" })
       providerOptions: {
         openai: {
           forceReasoning: true,
-          reasoningEffort: "low",
+          reasoningEffort: EFFORT[data.quality],
           reasoningSummary: "auto",
           store: false,
           include: ["reasoning.encrypted_content"],
