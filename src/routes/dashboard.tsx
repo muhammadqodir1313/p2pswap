@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Coins, GraduationCap, Lightbulb, CheckCircle2 } from "lucide-react";
 
 import { AppShell } from "@/components/AppHeader";
+import { DashboardAgenda } from "@/components/DashboardAgenda";
 import { MatchCard } from "@/components/MatchCard";
 import { Button } from "@/components/ui/button";
 import { useAuth, useRequireAuth } from "@/lib/auth";

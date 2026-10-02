@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 const links = [
   { to: "/dashboard", label: "Bosh sahifa" },
   { to: "/matches", label: "Hamkor topish" },
+  { to: "/calendar", label: "Kalendar" },
   { to: "/sessions", label: "Mashg‘ulotlarim" },
   { to: "/profile", label: "Profil" },
   { to: "/subscription", label: "Tariflar" },
