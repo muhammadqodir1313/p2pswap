@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Coins, GraduationCap, Lightbulb, CheckCircle2 } from "lucide-react";
 
 import { AppShell } from "@/components/AppHeader";
+import { DashboardAgenda } from "@/components/DashboardAgenda";
 import { MatchCard } from "@/components/MatchCard";
 import { Button } from "@/components/ui/button";
 import { useAuth, useRequireAuth } from "@/lib/auth";
@@ -100,6 +101,8 @@ function DashboardPage() {
         <Stat icon={Lightbulb} label="O‘rganmoqchi bo‘lganlarim" value={me?.learn.length ?? 0} />
         <Stat icon={CheckCircle2} label="Yakunlangan mashg‘ulotlar" value={completed} />
       </div>
+
+      <DashboardAgenda userId={user.id} profiles={profiles} />
 
 
       <div className="mt-10 flex items-center justify-between gap-4">
