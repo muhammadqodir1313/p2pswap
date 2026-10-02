@@ -102,6 +102,8 @@ function DashboardPage() {
         <Stat icon={CheckCircle2} label="Yakunlangan mashg‘ulotlar" value={completed} />
       </div>
 
+      <DashboardAgenda userId={user.id} profiles={profiles} />
+
 
       <div className="mt-10 flex items-center justify-between gap-4">
         <h2 className="text-xl font-semibold tracking-tight">Sizga mos hamkorlar</h2>
