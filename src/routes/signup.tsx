@@ -48,7 +48,19 @@ function SignupPage() {
     });
     setBusy(false);
     if (error) {
-      toast.error("Hisob yaratib bo‘lmadi. Ma’lumotlarni tekshirib, qayta urinib ko‘ring.");
+      const code = (error as { code?: string }).code ?? "";
+      const msg = error.message.toLowerCase();
+      if (code === "weak_password" || msg.includes("weak")) {
+        toast.error("Bu parol juda oddiy yoki oshkor bo‘lgan. Harf, raqam va belgilardan iborat murakkabroq parol tanlang.");
+      } else if (code === "user_already_exists" || msg.includes("already registered")) {
+        toast.error("Bu pochta bilan hisob allaqachon mavjud. Kirish sahifasidan foydalaning.");
+      } else if (msg.includes("invalid") && msg.includes("email")) {
+        toast.error("Elektron pochta manzili noto‘g‘ri.");
+      } else if (code === "over_email_send_rate_limit" || msg.includes("rate limit")) {
+        toast.error("Juda ko‘p urinish. Birozdan so‘ng qayta urinib ko‘ring.");
+      } else {
+        toast.error(`Hisob yaratib bo‘lmadi: ${error.message}`);
+      }
       return;
     }
     toast.success("Hisob yaratildi!");
@@ -92,10 +104,12 @@ function SignupPage() {
               id="password"
               type="password"
               required
-              minLength={6}
+              minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">Kamida 8 belgi. "123456" kabi oddiy parollar qabul qilinmaydi.</p>
+
           </div>
           <Button type="submit" className="w-full" disabled={busy}>
             {busy ? "Yaratilmoqda…" : "Almashishni boshlash"}
