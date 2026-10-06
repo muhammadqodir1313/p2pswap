@@ -108,6 +108,8 @@ function SignupPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">Kamida 8 belgi. "123456" kabi oddiy parollar qabul qilinmaydi.</p>
+
           </div>
           <Button type="submit" className="w-full" disabled={busy}>
             {busy ? "Yaratilmoqda…" : "Almashishni boshlash"}
