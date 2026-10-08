@@ -29,8 +29,7 @@ export const Route = createFileRoute("/subscription")({
       { property: "og:title", content: "Tariflar va narxlar — PeerSwap" },
       {
         property: "og:description",
-        content:
-          "Bepul boshlang, ko‘proq imkoniyat kerak bo‘lganda tarifni yangilang.",
+        content: "Bepul boshlang, ko‘proq imkoniyat kerak bo‘lganda tarifni yangilang.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -244,7 +243,8 @@ function SubscriptionPage() {
       </div>
 
       <p className="mt-8 text-center text-xs text-muted-foreground">
-        Bu sinov talqini — to‘lov olinmaydi. Tarif o‘zgartirilganda haftalik PeerPointlaringiz darhol yangilanadi.
+        Bu sinov talqini — to‘lov olinmaydi. Tarif o‘zgartirilganda haftalik PeerPointlaringiz
+        darhol yangilanadi.
       </p>
 
       <Dialog open={selected !== null} onOpenChange={(open) => !open && setSelected(null)}>
@@ -263,10 +263,7 @@ function SubscriptionPage() {
                 <Button variant="ghost" onClick={() => setSelected(null)}>
                   Bekor qilish
                 </Button>
-                <Button
-                  disabled={pending}
-                  onClick={() => selected && void applyPlan(selected.id)}
-                >
+                <Button disabled={pending} onClick={() => selected && void applyPlan(selected.id)}>
                   {pending ? "Kuting…" : "Davom etish"}
                 </Button>
               </DialogFooter>
@@ -276,7 +273,8 @@ function SubscriptionPage() {
               <DialogHeader>
                 <DialogTitle>Tez orada</DialogTitle>
                 <DialogDescription>
-                  To‘lovlar tez orada ishga tushadi. Qiziqishingiz qayd etildi va tarifingiz ushbu demo uchun faollashtirildi.
+                  To‘lovlar tez orada ishga tushadi. Qiziqishingiz qayd etildi va tarifingiz ushbu
+                  demo uchun faollashtirildi.
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>

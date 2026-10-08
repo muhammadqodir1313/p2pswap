@@ -13,9 +13,15 @@ export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
       { title: "Bosh sahifa — PeerSwap" },
-      { name: "description", content: "Haftalik PeerPointlar, ko‘nikmalar va tavsiya etilgan hamkorlar." },
+      {
+        name: "description",
+        content: "Haftalik PeerPointlar, ko‘nikmalar va tavsiya etilgan hamkorlar.",
+      },
       { property: "og:title", content: "Bosh sahifa — PeerSwap" },
-      { property: "og:description", content: "Haftalik PeerPointlar, ko‘nikmalar va tavsiya etilgan hamkorlar." },
+      {
+        property: "og:description",
+        content: "Haftalik PeerPointlar, ko‘nikmalar va tavsiya etilgan hamkorlar.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -50,7 +56,9 @@ function DashboardPage() {
   const sessions = sessionsQuery.data ?? [];
   const completed = sessions.filter((s) => s.status === "completed").length;
   const matches = me ? rankMatches(me, profiles).slice(0, 5) : [];
-  const requestedIds = new Set(sessions.map((s) => (s.requester_id === user.id ? s.partner_id : s.requester_id)));
+  const requestedIds = new Set(
+    sessions.map((s) => (s.requester_id === user.id ? s.partner_id : s.requester_id)),
+  );
   const points = pointsQuery.data;
   const isUnlimited = points?.allowance == null && points != null;
   const remaining = points?.remaining ?? null;
@@ -77,14 +85,10 @@ function DashboardPage() {
             PeerPointlar · {plan === "pro" ? "Pro" : plan === "premium" ? "Premium" : "Bepul"} tarif
           </p>
           <p className="mt-1 text-2xl font-bold">
-            {isUnlimited
-              ? "Cheksiz PeerPoint"
-              : `${remaining} / ${allowance} PeerPoint shu hafta`}
+            {isUnlimited ? "Cheksiz PeerPoint" : `${remaining} / ${allowance} PeerPoint shu hafta`}
           </p>
           {!isUnlimited ? (
-            <p className="text-sm opacity-80">
-              {days} kundan keyin yangilanadi
-            </p>
+            <p className="text-sm opacity-80">{days} kundan keyin yangilanadi</p>
           ) : null}
           {!isUnlimited && remaining === 0 ? (
             <p className="mt-2 text-xs opacity-90">
@@ -92,18 +96,24 @@ function DashboardPage() {
             </p>
           ) : null}
           {!isUnlimited ? (
-            <Link to="/subscription" className="mt-3 inline-block text-xs font-medium underline opacity-90">
+            <Link
+              to="/subscription"
+              className="mt-3 inline-block text-xs font-medium underline opacity-90"
+            >
               Tarifni yangilash
             </Link>
           ) : null}
         </div>
-        <Stat icon={GraduationCap} label="O‘rgatadigan ko‘nikmalarim" value={me?.teach.length ?? 0} />
+        <Stat
+          icon={GraduationCap}
+          label="O‘rgatadigan ko‘nikmalarim"
+          value={me?.teach.length ?? 0}
+        />
         <Stat icon={Lightbulb} label="O‘rganmoqchi bo‘lganlarim" value={me?.learn.length ?? 0} />
         <Stat icon={CheckCircle2} label="Yakunlangan mashg‘ulotlar" value={completed} />
       </div>
 
       <DashboardAgenda userId={user.id} profiles={profiles} />
-
 
       <div className="mt-10 flex items-center justify-between gap-4">
         <h2 className="text-xl font-semibold tracking-tight">Sizga mos hamkorlar</h2>

@@ -101,7 +101,11 @@ function CalendarPage() {
     queryFn: () => fetchSlots(weekStart.toISOString(), weekEnd.toISOString()),
     enabled: !!user,
   });
-  const profilesQuery = useQuery({ queryKey: ["profiles"], queryFn: fetchProfiles, enabled: !!user });
+  const profilesQuery = useQuery({
+    queryKey: ["profiles"],
+    queryFn: fetchProfiles,
+    enabled: !!user,
+  });
   const pointsQuery = useQuery({
     queryKey: ["weekly-points", user?.id],
     queryFn: () => fetchWeeklyPoints(user!.id),
@@ -223,13 +227,23 @@ function CalendarPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" aria-label="Oldingi hafta" onClick={() => setWeekStart(addDays(weekStart, -7))}>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Oldingi hafta"
+            onClick={() => setWeekStart(addDays(weekStart, -7))}
+          >
             <ChevronLeft className="size-4" />
           </Button>
           <Button variant="outline" size="sm" onClick={() => setWeekStart(startOfWeek(new Date()))}>
             Bu hafta
           </Button>
-          <Button variant="outline" size="icon" aria-label="Keyingi hafta" onClick={() => setWeekStart(addDays(weekStart, 7))}>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Keyingi hafta"
+            onClick={() => setWeekStart(addDays(weekStart, 7))}
+          >
             <ChevronRight className="size-4" />
           </Button>
           <Button size="sm" onClick={() => openCreate(new Date(), new Date().getHours())}>
@@ -267,7 +281,11 @@ function CalendarPage() {
           <div className="grid grid-cols-[56px_repeat(7,1fr)]">
             <div>
               {HOURS.map((h) => (
-                <div key={h} style={{ height: ROW_H }} className="pr-2 text-right text-xs text-muted-foreground">
+                <div
+                  key={h}
+                  style={{ height: ROW_H }}
+                  className="pr-2 text-right text-xs text-muted-foreground"
+                >
                   {String(h).padStart(2, "0")}:00
                 </div>
               ))}
@@ -322,13 +340,18 @@ function CalendarPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{draft?.id ? "Slotni tahrirlash" : "Yangi slot"}</DialogTitle>
-            <DialogDescription>Bo‘sh vaqtingizni belgilang — boshqalar qo‘shila oladi.</DialogDescription>
+            <DialogDescription>
+              Bo‘sh vaqtingizni belgilang — boshqalar qo‘shila oladi.
+            </DialogDescription>
           </DialogHeader>
           {draft ? (
             <div className="space-y-4">
               <div>
                 <Label>Slot turi</Label>
-                <Select value={draft.kind} onValueChange={(v) => setDraft({ ...draft, kind: v as SlotKind })}>
+                <Select
+                  value={draft.kind}
+                  onValueChange={(v) => setDraft({ ...draft, kind: v as SlotKind })}
+                >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
@@ -352,11 +375,23 @@ function CalendarPage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="date">Sana</Label>
-                  <Input id="date" type="date" className="mt-1" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} />
+                  <Input
+                    id="date"
+                    type="date"
+                    className="mt-1"
+                    value={draft.date}
+                    onChange={(e) => setDraft({ ...draft, date: e.target.value })}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="start">Boshlanishi</Label>
-                  <Input id="start" type="time" className="mt-1" value={draft.start} onChange={(e) => setDraft({ ...draft, start: e.target.value })} />
+                  <Input
+                    id="start"
+                    type="time"
+                    className="mt-1"
+                    value={draft.start}
+                    onChange={(e) => setDraft({ ...draft, start: e.target.value })}
+                  />
                 </div>
               </div>
               <div>
@@ -392,11 +427,20 @@ function CalendarPage() {
                   <p className="text-sm font-medium">{draft.is_online ? "Onlayn" : "Oflayn"}</p>
                   <p className="text-xs text-muted-foreground">Mashg‘ulot qayerda o‘tadi</p>
                 </div>
-                <Switch checked={draft.is_online} onCheckedChange={(v) => setDraft({ ...draft, is_online: v })} />
+                <Switch
+                  checked={draft.is_online}
+                  onCheckedChange={(v) => setDraft({ ...draft, is_online: v })}
+                />
               </div>
               <div>
                 <Label htmlFor="desc">Izoh (ixtiyoriy)</Label>
-                <Textarea id="desc" className="mt-1" rows={2} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+                <Textarea
+                  id="desc"
+                  className="mt-1"
+                  rows={2}
+                  value={draft.description}
+                  onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                />
               </div>
               {draft.kind !== "personal" ? (
                 <p className="text-xs text-muted-foreground">
@@ -423,7 +467,9 @@ function CalendarPage() {
             <>
               <DialogHeader>
                 <DialogTitle>
-                  {selected.kind === "personal" ? selected.skill : `${KIND_LABEL[selected.kind]}: ${selected.skill}`}
+                  {selected.kind === "personal"
+                    ? selected.skill
+                    : `${KIND_LABEL[selected.kind]}: ${selected.skill}`}
                 </DialogTitle>
                 <DialogDescription>
                   {formatDayLabel(new Date(selected.starts_at))} · {timeRange(selected)} ·{" "}
@@ -433,7 +479,11 @@ function CalendarPage() {
 
               <div className="space-y-2 text-sm">
                 <p className="flex items-center gap-2 text-muted-foreground">
-                  {selected.is_online ? <Globe className="size-4" /> : <MapPin className="size-4" />}
+                  {selected.is_online ? (
+                    <Globe className="size-4" />
+                  ) : (
+                    <MapPin className="size-4" />
+                  )}
                   {selected.is_online ? "Onlayn" : "Oflayn"} · {STATUS_LABEL[selected.status]}
                 </p>
                 <p>
@@ -441,15 +491,19 @@ function CalendarPage() {
                 </p>
                 {selected.partner_id ? (
                   <p>
-                    <span className="text-muted-foreground">Hamkor:</span> {nameOf(selected.partner_id)}
+                    <span className="text-muted-foreground">Hamkor:</span>{" "}
+                    {nameOf(selected.partner_id)}
                   </p>
                 ) : null}
                 {selected.kind !== "personal" ? (
                   <p>
-                    <span className="text-muted-foreground">Narxi:</span> {selected.peerpoint_cost} PeerPoint
+                    <span className="text-muted-foreground">Narxi:</span> {selected.peerpoint_cost}{" "}
+                    PeerPoint
                   </p>
                 ) : null}
-                {selected.description ? <p className="text-muted-foreground">{selected.description}</p> : null}
+                {selected.description ? (
+                  <p className="text-muted-foreground">{selected.description}</p>
+                ) : null}
               </div>
 
               {recommended.length > 0 && selected.status === "open" ? (
@@ -473,20 +527,30 @@ function CalendarPage() {
                   const started = new Date(selected.starts_at).getTime() <= Date.now();
                   const myDone = isOwner ? selected.owner_done : selected.partner_done;
                   const otherDone = isOwner ? selected.partner_done : selected.owner_done;
-                  const active = selected.status === "confirmed" || selected.status === "in_progress";
+                  const active =
+                    selected.status === "confirmed" || selected.status === "in_progress";
                   return (
                     <>
                       {isOwner && selected.status === "open" && !selected.partner_id ? (
                         <>
-                          <Button variant="outline" onClick={() => openEdit(selected)}>Tahrirlash</Button>
-                          <Button variant="outline" disabled={busy} onClick={() => act(() => deleteSlot(selected.id), "Slot o‘chirildi.")}>
+                          <Button variant="outline" onClick={() => openEdit(selected)}>
+                            Tahrirlash
+                          </Button>
+                          <Button
+                            variant="outline"
+                            disabled={busy}
+                            onClick={() => act(() => deleteSlot(selected.id), "Slot o‘chirildi.")}
+                          >
                             O‘chirish
                           </Button>
                         </>
                       ) : null}
 
                       {selected.status === "open" && !isOwner && selected.kind !== "personal" ? (
-                        <Button disabled={busy} onClick={() => act(() => joinSlot(selected.id), "Siz qo‘shildingiz!")}>
+                        <Button
+                          disabled={busy}
+                          onClick={() => act(() => joinSlot(selected.id), "Siz qo‘shildingiz!")}
+                        >
                           Slotga qo‘shilish
                         </Button>
                       ) : null}
@@ -495,7 +559,8 @@ function CalendarPage() {
                         started ? (
                           myDone ? (
                             <p className="text-sm text-muted-foreground">
-                              Siz tasdiqladingiz. {otherDone ? "" : "Hamkor tasdiqlashi kutilmoqda."}
+                              Siz tasdiqladingiz.{" "}
+                              {otherDone ? "" : "Hamkor tasdiqlashi kutilmoqda."}
                             </p>
                           ) : (
                             <Button
@@ -503,7 +568,9 @@ function CalendarPage() {
                               onClick={() =>
                                 act(
                                   () => setSlotStatus(selected.id, "completed"),
-                                  otherDone ? "Yakunlandi — PeerPoint o‘tkazildi." : "Tasdiqlandi. Hamkor ham tasdiqlashi kerak.",
+                                  otherDone
+                                    ? "Yakunlandi — PeerPoint o‘tkazildi."
+                                    : "Tasdiqlandi. Hamkor ham tasdiqlashi kerak.",
                                 )
                               }
                             >
@@ -511,12 +578,23 @@ function CalendarPage() {
                             </Button>
                           )
                         ) : (
-                          <p className="text-sm text-muted-foreground">Yakunlash mashg‘ulot boshlangandan keyin ochiladi.</p>
+                          <p className="text-sm text-muted-foreground">
+                            Yakunlash mashg‘ulot boshlangandan keyin ochiladi.
+                          </p>
                         )
                       ) : null}
 
-                      {isMember && !started && selected.status !== "completed" && selected.status !== "cancelled" ? (
-                        <Button variant="outline" disabled={busy} onClick={() => act(() => setSlotStatus(selected.id, "cancelled"), "Bekor qilindi.")}>
+                      {isMember &&
+                      !started &&
+                      selected.status !== "completed" &&
+                      selected.status !== "cancelled" ? (
+                        <Button
+                          variant="outline"
+                          disabled={busy}
+                          onClick={() =>
+                            act(() => setSlotStatus(selected.id, "cancelled"), "Bekor qilindi.")
+                          }
+                        >
                           Bekor qilish
                         </Button>
                       ) : null}

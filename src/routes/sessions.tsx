@@ -23,9 +23,15 @@ export const Route = createFileRoute("/sessions")({
   head: () => ({
     meta: [
       { title: "Mashg‘ulotlarim — PeerSwap" },
-      { name: "description", content: "Kutilayotgan, rejalashtirilgan va yakunlangan almashinuvlarni kuzating." },
+      {
+        name: "description",
+        content: "Kutilayotgan, rejalashtirilgan va yakunlangan almashinuvlarni kuzating.",
+      },
       { property: "og:title", content: "Mashg‘ulotlarim — PeerSwap" },
-      { property: "og:description", content: "Kutilayotgan, rejalashtirilgan va yakunlangan almashinuvlarni kuzating." },
+      {
+        property: "og:description",
+        content: "Kutilayotgan, rejalashtirilgan va yakunlangan almashinuvlarni kuzating.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -37,7 +43,11 @@ function SessionsPage() {
   const { user } = useRequireAuth();
   const { loading } = useAuth();
 
-  const profilesQuery = useQuery({ queryKey: ["profiles"], queryFn: fetchProfiles, enabled: !!user });
+  const profilesQuery = useQuery({
+    queryKey: ["profiles"],
+    queryFn: fetchProfiles,
+    enabled: !!user,
+  });
   const sessionsQuery = useQuery({
     queryKey: ["sessions", user?.id],
     queryFn: () => fetchMySessions(user!.id),
@@ -46,7 +56,10 @@ function SessionsPage() {
   const feedbackQuery = useQuery({
     queryKey: ["feedback", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("feedback").select("session_id").eq("user_id", user!.id);
+      const { data, error } = await supabase
+        .from("feedback")
+        .select("session_id")
+        .eq("user_id", user!.id);
       if (error) throw error;
       return (data ?? []).map((row) => row.session_id as string);
     },
@@ -68,12 +81,16 @@ function SessionsPage() {
   return (
     <AppShell>
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Mashg‘ulotlarim</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Siz yuborgan yoki qabul qilgan barcha almashinuvlar.</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Siz yuborgan yoki qabul qilgan barcha almashinuvlar.
+      </p>
 
       <Tabs defaultValue="pending" className="mt-6">
         <TabsList>
           <TabsTrigger value="pending">Kutilmoqda ({byStatus("pending").length})</TabsTrigger>
-          <TabsTrigger value="accepted">Rejalashtirilgan ({byStatus("accepted").length})</TabsTrigger>
+          <TabsTrigger value="accepted">
+            Rejalashtirilgan ({byStatus("accepted").length})
+          </TabsTrigger>
           <TabsTrigger value="completed">Yakunlangan ({byStatus("completed").length})</TabsTrigger>
         </TabsList>
 
@@ -161,11 +178,16 @@ function SessionCard({
             {mySkill} <span className="text-accent">↔</span> {theirSkill}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Hamkor: {partner ? fullName(partner) : "PeerSwap a’zosi"} · {formatDate(session.created_at)}
+            Hamkor: {partner ? fullName(partner) : "PeerSwap a’zosi"} ·{" "}
+            {formatDate(session.created_at)}
           </p>
         </div>
         <span className="rounded-full border border-border bg-secondary px-3 py-1 text-xs capitalize text-muted-foreground">
-          {session.status === "pending" ? "Kutilmoqda" : session.status === "accepted" ? "Qabul qilingan" : "Yakunlangan"}
+          {session.status === "pending"
+            ? "Kutilmoqda"
+            : session.status === "accepted"
+              ? "Qabul qilingan"
+              : "Yakunlangan"}
         </span>
       </div>
 

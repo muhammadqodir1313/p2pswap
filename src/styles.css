@@ -95,11 +95,8 @@
   --sidebar-border: oklch(0.33 0.03 256);
   --sidebar-ring: oklch(0.68 0.16 245);
 
-  --gradient-hero: radial-gradient(
-      70% 60% at 20% 0%,
-      oklch(0.68 0.16 245 / 0.28) 0%,
-      transparent 70%
-    ),
+  --gradient-hero:
+    radial-gradient(70% 60% at 20% 0%, oklch(0.68 0.16 245 / 0.28) 0%, transparent 70%),
     radial-gradient(60% 60% at 90% 10%, oklch(0.76 0.16 168 / 0.22) 0%, transparent 70%);
   --gradient-brand: linear-gradient(100deg, oklch(0.68 0.16 245), oklch(0.76 0.16 168));
   --shadow-card: 0 12px 40px -20px oklch(0.1 0.03 255 / 0.9);

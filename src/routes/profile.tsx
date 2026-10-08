@@ -19,7 +19,10 @@ export const Route = createFileRoute("/profile")({
       { title: "Mening profilim — PeerSwap" },
       { name: "description", content: "PeerSwap profilingiz va ko‘nikmalaringizni tahrirlang." },
       { property: "og:title", content: "Mening profilim — PeerSwap" },
-      { property: "og:description", content: "PeerSwap profilingiz va ko‘nikmalaringizni tahrirlang." },
+      {
+        property: "og:description",
+        content: "PeerSwap profilingiz va ko‘nikmalaringizni tahrirlang.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -112,7 +115,11 @@ function ProfilePage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="first">Ism</Label>
-                <Input id="first" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                <Input
+                  id="first"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="last">Familiya</Label>

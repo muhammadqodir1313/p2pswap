@@ -12,9 +12,15 @@ export const Route = createFileRoute("/signup")({
   head: () => ({
     meta: [
       { title: "Ro‘yxatdan o‘tish — PeerSwap" },
-      { name: "description", content: "PeerSwap hisobini yarating va ko‘nikma almashishni boshlang." },
+      {
+        name: "description",
+        content: "PeerSwap hisobini yarating va ko‘nikma almashishni boshlang.",
+      },
       { property: "og:title", content: "Ro‘yxatdan o‘tish — PeerSwap" },
-      { property: "og:description", content: "PeerSwap hisobini yarating va ko‘nikma almashishni boshlang." },
+      {
+        property: "og:description",
+        content: "PeerSwap hisobini yarating va ko‘nikma almashishni boshlang.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -51,7 +57,9 @@ function SignupPage() {
       const code = (error as { code?: string }).code ?? "";
       const msg = error.message.toLowerCase();
       if (code === "weak_password" || msg.includes("weak")) {
-        toast.error("Bu parol juda oddiy yoki oshkor bo‘lgan. Harf, raqam va belgilardan iborat murakkabroq parol tanlang.");
+        toast.error(
+          "Bu parol juda oddiy yoki oshkor bo‘lgan. Harf, raqam va belgilardan iborat murakkabroq parol tanlang.",
+        );
       } else if (code === "user_already_exists" || msg.includes("already registered")) {
         toast.error("Bu pochta bilan hisob allaqachon mavjud. Kirish sahifasidan foydalaning.");
       } else if (msg.includes("invalid") && msg.includes("email")) {
@@ -74,17 +82,29 @@ function SignupPage() {
           ← PeerSwap
         </Link>
         <h1 className="mt-4 text-2xl font-semibold tracking-tight">Hisob yaratish</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Ko‘nikma o‘rgating va yangi ko‘nikma o‘rganing.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Ko‘nikma o‘rgating va yangi ko‘nikma o‘rganing.
+        </p>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="first">Ism</Label>
-              <Input id="first" required value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+              <Input
+                id="first"
+                required
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="last">Familiya</Label>
-              <Input id="last" required value={lastName} onChange={(e) => setLastName(e.target.value)} />
+              <Input
+                id="last"
+                required
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+              />
             </div>
           </div>
           <div className="space-y-2">
@@ -108,8 +128,9 @@ function SignupPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">Kamida 8 belgi. "123456" kabi oddiy parollar qabul qilinmaydi.</p>
-
+            <p className="text-xs text-muted-foreground">
+              Kamida 8 belgi. "123456" kabi oddiy parollar qabul qilinmaydi.
+            </p>
           </div>
           <Button type="submit" className="w-full" disabled={busy}>
             {busy ? "Yaratilmoqda…" : "Almashishni boshlash"}

@@ -11,9 +11,15 @@ export const Route = createFileRoute("/matches")({
   head: () => ({
     meta: [
       { title: "Hamkor topish — PeerSwap" },
-      { name: "description", content: "Ko‘nikmalaringizga mos hamkorlarni toping va almashinuv so‘rovini yuboring." },
+      {
+        name: "description",
+        content: "Ko‘nikmalaringizga mos hamkorlarni toping va almashinuv so‘rovini yuboring.",
+      },
       { property: "og:title", content: "Hamkor topish — PeerSwap" },
-      { property: "og:description", content: "Ko‘nikmalaringizga mos hamkorlarni toping va almashinuv so‘rovini yuboring." },
+      {
+        property: "og:description",
+        content: "Ko‘nikmalaringizga mos hamkorlarni toping va almashinuv so‘rovini yuboring.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -25,7 +31,11 @@ function MatchesPage() {
   const { user } = useRequireAuth();
   const { loading } = useAuth();
 
-  const profilesQuery = useQuery({ queryKey: ["profiles"], queryFn: fetchProfiles, enabled: !!user });
+  const profilesQuery = useQuery({
+    queryKey: ["profiles"],
+    queryFn: fetchProfiles,
+    enabled: !!user,
+  });
   const sessionsQuery = useQuery({
     queryKey: ["sessions", user?.id],
     queryFn: () => fetchMySessions(user!.id),
@@ -43,7 +53,9 @@ function MatchesPage() {
   const me = profiles.find((p) => p.id === user.id);
   const matches = me ? rankMatches(me, profiles) : [];
   const sessions = sessionsQuery.data ?? [];
-  const requestedIds = new Set(sessions.map((s) => (s.requester_id === user.id ? s.partner_id : s.requester_id)));
+  const requestedIds = new Set(
+    sessions.map((s) => (s.requester_id === user.id ? s.partner_id : s.requester_id)),
+  );
 
   return (
     <AppShell>

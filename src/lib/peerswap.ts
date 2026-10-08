@@ -53,7 +53,8 @@ function mapProfile(row: RawProfile): ProfileWithSkills {
   };
 }
 
-const PROFILE_SELECT = "id, first_name, last_name, bio, is_active, is_demo, created_at, teach, learn";
+const PROFILE_SELECT =
+  "id, first_name, last_name, bio, is_active, is_demo, created_at, teach, learn";
 
 export async function fetchProfiles(): Promise<ProfileWithSkills[]> {
   const { data, error } = await supabase.from("peer_directory").select(PROFILE_SELECT);
@@ -104,7 +105,9 @@ export async function fetchWeeklyPoints(userId: string): Promise<WeeklyPoints> {
   const used = row?.used ?? 0;
   const plan = ((row as { plan?: string } | undefined)?.plan ?? "free") as Plan;
   const allowance = (row?.allowance ?? PLAN_ALLOWANCE.free) as number | null;
-  const elapsed = Math.floor((Date.now() - new Date(`${weekStart}T00:00:00`).getTime()) / 86_400_000);
+  const elapsed = Math.floor(
+    (Date.now() - new Date(`${weekStart}T00:00:00`).getTime()) / 86_400_000,
+  );
   return {
     weekStart,
     used,

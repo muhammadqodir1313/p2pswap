@@ -1,0 +1,5 @@
+{
+  "name": "PeerSwap",
+  "description": "P2P skill sharing platform to exchange knowledge, find matching peers, and schedule learning sessions.",
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

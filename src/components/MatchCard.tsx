@@ -38,7 +38,9 @@ export function MatchCard({
       await spendPeerPoint();
     } catch {
       setBusy(false);
-      toast.error("Bu haftadagi barcha PeerPointlaringiz ishlatildi. Ular keyingi hafta tiklanadi.");
+      toast.error(
+        "Bu haftadagi barcha PeerPointlaringiz ishlatildi. Ular keyingi hafta tiklanadi.",
+      );
       onRequested?.();
       return;
     }
@@ -82,11 +84,15 @@ export function MatchCard({
 
       <div className="space-y-3">
         <div>
-          <p className="mb-1.5 text-xs uppercase tracking-wide text-muted-foreground">O‘rgata oladi</p>
+          <p className="mb-1.5 text-xs uppercase tracking-wide text-muted-foreground">
+            O‘rgata oladi
+          </p>
           <SkillTags skills={profile.teach} tone="teach" />
         </div>
         <div>
-          <p className="mb-1.5 text-xs uppercase tracking-wide text-muted-foreground">O‘rganmoqchi</p>
+          <p className="mb-1.5 text-xs uppercase tracking-wide text-muted-foreground">
+            O‘rganmoqchi
+          </p>
           <SkillTags skills={profile.learn} tone="learn" />
         </div>
       </div>

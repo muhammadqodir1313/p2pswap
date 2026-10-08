@@ -2,11 +2,24 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { CalendarDays, Coins, DoorOpen, Clock } from "lucide-react";
 
-import { fetchUpcomingSlots, formatDayLabel, isSameDay, KIND_LABEL, slotColor, toTimeInput } from "@/lib/calendar";
+import {
+  fetchUpcomingSlots,
+  formatDayLabel,
+  isSameDay,
+  KIND_LABEL,
+  slotColor,
+  toTimeInput,
+} from "@/lib/calendar";
 import { fullName, type ProfileWithSkills } from "@/lib/peerswap";
 import { supabase } from "@/integrations/supabase/client";
 
-export function DashboardAgenda({ userId, profiles }: { userId: string; profiles: ProfileWithSkills[] }) {
+export function DashboardAgenda({
+  userId,
+  profiles,
+}: {
+  userId: string;
+  profiles: ProfileWithSkills[];
+}) {
   const slotsQuery = useQuery({
     queryKey: ["agenda", userId],
     queryFn: () => fetchUpcomingSlots(userId),
@@ -14,7 +27,10 @@ export function DashboardAgenda({ userId, profiles }: { userId: string; profiles
   const balanceQuery = useQuery({
     queryKey: ["peercoins", userId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("peercoin_transactions").select("amount, reason").eq("user_id", userId);
+      const { data, error } = await supabase
+        .from("peercoin_transactions")
+        .select("amount, reason")
+        .eq("user_id", userId);
       if (error) throw error;
       return (data ?? [])
         .filter((r) => (r.reason ?? "").startsWith("Calendar session"))
@@ -26,7 +42,9 @@ export function DashboardAgenda({ userId, profiles }: { userId: string; profiles
   const today = new Date();
   const todays = slots.filter((s) => isSameDay(new Date(s.starts_at), today));
   const upcoming = slots.filter((s) => s.partner_id && s.status !== "completed");
-  const open = slots.filter((s) => s.status === "open" && s.owner_id === userId && s.kind !== "personal");
+  const open = slots.filter(
+    (s) => s.status === "open" && s.owner_id === userId && s.kind !== "personal",
+  );
   const list = (todays.length ? todays : slots).slice(0, 5);
 
   const nameOf = (id: string | null) => {
@@ -81,7 +99,11 @@ export function DashboardAgenda({ userId, profiles }: { userId: string; profiles
                     </p>
                     <p className="text-xs opacity-80">
                       {!isSameDay(st, today) ? `${formatDayLabel(st)} · ` : ""}
-                      {other ? `${nameOf(other)} bilan` : s.kind === "personal" ? "Shaxsiy" : "Ochiq slot"}
+                      {other
+                        ? `${nameOf(other)} bilan`
+                        : s.kind === "personal"
+                          ? "Shaxsiy"
+                          : "Ochiq slot"}
                     </p>
                   </div>
                 </li>
@@ -94,7 +116,15 @@ export function DashboardAgenda({ userId, profiles }: { userId: string; profiles
   );
 }
 
-function Mini({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: number }) {
+function Mini({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number;
+}) {
   return (
     <div className="surface-card p-4">
       <Icon className="size-4 text-accent" />

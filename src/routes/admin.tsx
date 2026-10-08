@@ -13,7 +13,10 @@ export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
       { title: "Admin — PeerSwap" },
-      { name: "description", content: "PeerSwap foydalanuvchilari, mashg‘ulotlari va fikr-mulohazalarini boshqarish." },
+      {
+        name: "description",
+        content: "PeerSwap foydalanuvchilari, mashg‘ulotlari va fikr-mulohazalarini boshqarish.",
+      },
       { name: "robots", content: "noindex" },
       { property: "og:title", content: "Admin — PeerSwap" },
       { property: "og:description", content: "PeerSwap boshqaruv sahifasi." },
@@ -154,7 +157,9 @@ function AdminPage() {
       toast.error(error.message);
       return;
     }
-    toast.success(active ? "Foydalanuvchi faolsizlantirildi" : "Foydalanuvchi qayta faollashtirildi");
+    toast.success(
+      active ? "Foydalanuvchi faolsizlantirildi" : "Foydalanuvchi qayta faollashtirildi",
+    );
     profilesQuery.refetch();
   }
 
@@ -165,7 +170,10 @@ function AdminPage() {
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Jami foydalanuvchilar" value={profiles.length} />
         <Stat label="Jami mashg‘ulotlar" value={sessions.length} />
-        <Stat label="Yakunlangan mashg‘ulotlar" value={sessions.filter((s) => s.status === "completed").length} />
+        <Stat
+          label="Yakunlangan mashg‘ulotlar"
+          value={sessions.filter((s) => s.status === "completed").length}
+        />
         <Stat label="Jami ko‘nikmalar" value={totalSkills} />
       </div>
 
@@ -179,14 +187,20 @@ function AdminPage() {
 
         <TabsContent value="users" className="mt-4 space-y-3">
           {profiles.map((p) => (
-            <div key={p.id} className="surface-card flex flex-wrap items-center justify-between gap-3 p-4">
+            <div
+              key={p.id}
+              className="surface-card flex flex-wrap items-center justify-between gap-3 p-4"
+            >
               <div>
                 <p className="font-medium">
                   {fullName(p)}{" "}
-                  {!p.is_active ? <span className="text-xs text-destructive">(faolsiz)</span> : null}
+                  {!p.is_active ? (
+                    <span className="text-xs text-destructive">(faolsiz)</span>
+                  ) : null}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {p.peercoins} PeerPoint · o‘rgatadi: {p.teach.length} · o‘rganadi: {p.learn.length}
+                  {p.peercoins} PeerPoint · o‘rgatadi: {p.teach.length} · o‘rganadi:{" "}
+                  {p.learn.length}
                 </p>
               </div>
               <Button size="sm" variant="outline" onClick={() => deactivate(p.id, p.is_active)}>
@@ -206,7 +220,8 @@ function AdminPage() {
                   {s.requester_teaches} <span className="text-accent">↔</span> {s.partner_teaches}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {nameOf(s.requester_id)} · {nameOf(s.partner_id)} · {s.status} · {formatDate(s.created_at)}
+                  {nameOf(s.requester_id)} · {nameOf(s.partner_id)} · {s.status} ·{" "}
+                  {formatDate(s.created_at)}
                 </p>
               </div>
             ))
@@ -241,7 +256,8 @@ function AdminPage() {
             aiRecs.map((r) => (
               <div key={r.id} className="surface-card p-4">
                 <p className="text-xs text-muted-foreground">
-                  {nameOf(r.user_id)} · {QUALITY_LABEL[r.quality] ?? r.quality} · {formatDate(r.created_at)}
+                  {nameOf(r.user_id)} · {QUALITY_LABEL[r.quality] ?? r.quality} ·{" "}
+                  {formatDate(r.created_at)}
                 </p>
                 <p className="mt-1 text-sm font-medium">“{r.need}”</p>
                 {r.note ? <p className="mt-1 text-sm text-muted-foreground">{r.note}</p> : null}

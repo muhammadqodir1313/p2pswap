@@ -37,9 +37,14 @@ export function AiMatchFinder({
   const [quality, setQuality] = useState<RecommendQuality>("balanced");
   const recommend = useServerFn(recommendPartners);
 
-  const mutation = useMutation<RecommendPartnersResult, Error, { need: string; quality: RecommendQuality }>({
+  const mutation = useMutation<
+    RecommendPartnersResult,
+    Error,
+    { need: string; quality: RecommendQuality }
+  >({
     mutationFn: (value) => recommend({ data: value }),
-    onError: () => toast.error("Tavsiyalarni olishning iloji bo‘lmadi. Birozdan so‘ng qayta urinib ko‘ring."),
+    onError: () =>
+      toast.error("Tavsiyalarni olishning iloji bo‘lmadi. Birozdan so‘ng qayta urinib ko‘ring."),
   });
 
   const result = mutation.data;
@@ -61,7 +66,8 @@ export function AiMatchFinder({
         <h2 className="font-semibold">AI yordamida hamkor tanlash</h2>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Nimani o‘rganmoqchi ekaningizni va nimani o‘rgata olishingizni yozing — sizga mos hamkorlar tavsiya qilinadi.
+        Nimani o‘rganmoqchi ekaningizni va nimani o‘rgata olishingizni yozing — sizga mos hamkorlar
+        tavsiya qilinadi.
       </p>
 
       <form
@@ -109,8 +115,16 @@ export function AiMatchFinder({
             {mutation.isPending ? "Tavsiyalar tayyorlanmoqda…" : "Mos hamkorlarni topish"}
           </Button>
           {result || mutation.isError ? (
-            <Button type="button" variant="outline" disabled={mutation.isPending} onClick={() => run(quality)}>
-              <RefreshCw className={`size-4 ${mutation.isPending ? "animate-spin" : ""}`} aria-hidden />
+            <Button
+              type="button"
+              variant="outline"
+              disabled={mutation.isPending}
+              onClick={() => run(quality)}
+            >
+              <RefreshCw
+                className={`size-4 ${mutation.isPending ? "animate-spin" : ""}`}
+                aria-hidden
+              />
               Qayta o‘qish
             </Button>
           ) : null}

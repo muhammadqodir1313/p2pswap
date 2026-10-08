@@ -2,12 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type SlotKind = "teach" | "learn" | "personal";
 export type SlotStatus =
-  | "open"
-  | "requested"
-  | "confirmed"
-  | "in_progress"
-  | "completed"
-  | "cancelled";
+  "open" | "requested" | "confirmed" | "in_progress" | "completed" | "cancelled";
 
 export type CalendarSlot = {
   id: string;
