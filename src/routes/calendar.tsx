@@ -343,7 +343,7 @@ function CalendarPage() {
                   placeholder={draft.kind === "personal" ? "Shaxsiy ish" : "Masalan: SQL"}
                 />
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="date">Sana</Label>
                   <Input id="date" type="date" className="mt-1" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} />
@@ -352,10 +352,34 @@ function CalendarPage() {
                   <Label htmlFor="start">Boshlanishi</Label>
                   <Input id="start" type="time" className="mt-1" value={draft.start} onChange={(e) => setDraft({ ...draft, start: e.target.value })} />
                 </div>
-                <div>
-                  <Label htmlFor="end">Tugashi</Label>
-                  <Input id="end" type="time" className="mt-1" value={draft.end} onChange={(e) => setDraft({ ...draft, end: e.target.value })} />
+              </div>
+              <div>
+                <Label>Davomiyligi</Label>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {[30, 45, 60].map((m) => {
+                    const locked = isFree && draft.kind !== "personal" && m > 30;
+                    return (
+                      <Button
+                        key={m}
+                        type="button"
+                        size="sm"
+                        variant={draft.duration === m ? "default" : "outline"}
+                        disabled={locked}
+                        onClick={() => setDraft({ ...draft, duration: m })}
+                      >
+                        {m} daqiqa{locked ? " 🔒" : ""}
+                      </Button>
+                    );
+                  })}
                 </div>
+                {isFree && draft.kind !== "personal" ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Bepul tarifda faqat 30 daqiqalik mashg‘ulotlar.{" "}
+                    <Link to="/subscription" className="text-primary hover:underline">
+                      45 va 60 daqiqa uchun obuna bo‘ling
+                    </Link>
+                  </p>
+                ) : null}
               </div>
               <div className="flex items-center justify-between rounded-lg border border-border p-3">
                 <div>
