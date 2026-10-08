@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, Globe, MapPin, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -49,7 +49,7 @@ import {
   type CalendarSlot,
   type SlotKind,
 } from "@/lib/calendar";
-import { fetchProfiles, fullName, type ProfileWithSkills } from "@/lib/peerswap";
+import { fetchProfiles, fetchWeeklyPoints, fullName, type ProfileWithSkills } from "@/lib/peerswap";
 
 export const Route = createFileRoute("/calendar")({
   head: () => ({
@@ -82,7 +82,7 @@ type Draft = {
   skill: string;
   date: string;
   start: string;
-  end: string;
+  duration: number;
   is_online: boolean;
   description: string;
 };
@@ -102,6 +102,12 @@ function CalendarPage() {
     enabled: !!user,
   });
   const profilesQuery = useQuery({ queryKey: ["profiles"], queryFn: fetchProfiles, enabled: !!user });
+  const pointsQuery = useQuery({
+    queryKey: ["weekly-points", user?.id],
+    queryFn: () => fetchWeeklyPoints(user!.id),
+    enabled: !!user,
+  });
+  const isFree = (pointsQuery.data?.plan ?? "free") === "free";
 
   const profiles = useMemo(() => profilesQuery.data ?? [], [profilesQuery.data]);
   const nameOf = (id: string | null) => {
@@ -120,7 +126,7 @@ function CalendarPage() {
       skill: "",
       date: toDateInput(day),
       start: `${String(hour).padStart(2, "0")}:00`,
-      end: `${String(Math.min(hour + 1, 23)).padStart(2, "0")}:00`,
+      duration: 30,
       is_online: true,
       description: "",
     });
@@ -134,7 +140,7 @@ function CalendarPage() {
       skill: slot.skill,
       date: toDateInput(new Date(slot.starts_at)),
       start: toTimeInput(new Date(slot.starts_at)),
-      end: toTimeInput(new Date(slot.ends_at)),
+      duration: durationMinutes(slot),
       is_online: slot.is_online,
       description: slot.description,
     });
@@ -147,12 +153,12 @@ function CalendarPage() {
       toast.error("Ko‘nikma nomini yozing.");
       return;
     }
-    const starts = combine(draft.date, draft.start);
-    const ends = combine(draft.date, draft.end);
-    if (ends <= starts) {
-      toast.error("Tugash vaqti boshlanish vaqtidan keyin bo‘lishi kerak.");
+    if (isFree && draft.kind !== "personal" && draft.duration > 30) {
+      toast.error("45 va 60 daqiqalik mashg‘ulotlar uchun obuna kerak.");
       return;
     }
+    const starts = combine(draft.date, draft.start);
+    const ends = new Date(starts.getTime() + draft.duration * 60000);
     setBusy(true);
     try {
       const payload = {
@@ -343,7 +349,7 @@ function CalendarPage() {
                   placeholder={draft.kind === "personal" ? "Shaxsiy ish" : "Masalan: SQL"}
                 />
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="date">Sana</Label>
                   <Input id="date" type="date" className="mt-1" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} />
@@ -352,10 +358,34 @@ function CalendarPage() {
                   <Label htmlFor="start">Boshlanishi</Label>
                   <Input id="start" type="time" className="mt-1" value={draft.start} onChange={(e) => setDraft({ ...draft, start: e.target.value })} />
                 </div>
-                <div>
-                  <Label htmlFor="end">Tugashi</Label>
-                  <Input id="end" type="time" className="mt-1" value={draft.end} onChange={(e) => setDraft({ ...draft, end: e.target.value })} />
+              </div>
+              <div>
+                <Label>Davomiyligi</Label>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {[30, 45, 60].map((m) => {
+                    const locked = isFree && draft.kind !== "personal" && m > 30;
+                    return (
+                      <Button
+                        key={m}
+                        type="button"
+                        size="sm"
+                        variant={draft.duration === m ? "default" : "outline"}
+                        disabled={locked}
+                        onClick={() => setDraft({ ...draft, duration: m })}
+                      >
+                        {m} daqiqa{locked ? " 🔒" : ""}
+                      </Button>
+                    );
+                  })}
                 </div>
+                {isFree && draft.kind !== "personal" ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Bepul tarifda faqat 30 daqiqalik mashg‘ulotlar.{" "}
+                    <Link to="/subscription" className="text-primary hover:underline">
+                      45 va 60 daqiqa uchun obuna bo‘ling
+                    </Link>
+                  </p>
+                ) : null}
               </div>
               <div className="flex items-center justify-between rounded-lg border border-border p-3">
                 <div>
