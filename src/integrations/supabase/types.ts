@@ -67,7 +67,9 @@ export type Database = {
           id: string
           is_online: boolean
           kind: string
+          owner_done: boolean
           owner_id: string
+          partner_done: boolean
           partner_id: string | null
           peerpoint_cost: number
           skill: string
@@ -81,7 +83,9 @@ export type Database = {
           id?: string
           is_online?: boolean
           kind?: string
+          owner_done?: boolean
           owner_id: string
+          partner_done?: boolean
           partner_id?: string | null
           peerpoint_cost?: number
           skill?: string
@@ -95,7 +99,9 @@ export type Database = {
           id?: string
           is_online?: boolean
           kind?: string
+          owner_done?: boolean
           owner_id?: string
+          partner_done?: boolean
           partner_id?: string | null
           peerpoint_cost?: number
           skill?: string
@@ -445,7 +451,9 @@ export type Database = {
           id: string
           is_online: boolean
           kind: string
+          owner_done: boolean
           owner_id: string
+          partner_done: boolean
           partner_id: string | null
           peerpoint_cost: number
           skill: string
@@ -477,7 +485,9 @@ export type Database = {
           id: string
           is_online: boolean
           kind: string
+          owner_done: boolean
           owner_id: string
+          partner_done: boolean
           partner_id: string | null
           peerpoint_cost: number
           skill: string

@@ -64,6 +64,13 @@
       "when": 1791443795257,
       "tag": "0008_free_plan_30min_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791444057961,
+      "tag": "0009_calendar_completion_both_confirm",
+      "breakpoints": true
     }
   ]
 }
