@@ -22,6 +22,8 @@ export type CalendarSlot = {
   status: SlotStatus;
   peerpoint_cost: number;
   created_at: string;
+  owner_done: boolean;
+  partner_done: boolean;
 };
 
 export const KIND_LABEL: Record<SlotKind, string> = {
