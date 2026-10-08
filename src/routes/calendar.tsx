@@ -467,54 +467,62 @@ function CalendarPage() {
               ) : null}
 
               <DialogFooter className="flex-wrap gap-2">
-                {selected.owner_id === user.id ? (
-                  <>
-                    <Button variant="outline" onClick={() => openEdit(selected)}>
-                      Tahrirlash
-                    </Button>
-                    {selected.status === "open" ? (
-                      <Button
-                        variant="outline"
-                        disabled={busy}
-                        onClick={() => act(() => deleteSlot(selected.id), "Slot o‘chirildi.")}
-                      >
-                        O‘chirish
-                      </Button>
-                    ) : null}
-                  </>
-                ) : null}
+                {(() => {
+                  const isOwner = selected.owner_id === user.id;
+                  const isMember = isOwner || selected.partner_id === user.id;
+                  const started = new Date(selected.starts_at).getTime() <= Date.now();
+                  const myDone = isOwner ? selected.owner_done : selected.partner_done;
+                  const otherDone = isOwner ? selected.partner_done : selected.owner_done;
+                  const active = selected.status === "confirmed" || selected.status === "in_progress";
+                  return (
+                    <>
+                      {isOwner && selected.status === "open" && !selected.partner_id ? (
+                        <>
+                          <Button variant="outline" onClick={() => openEdit(selected)}>Tahrirlash</Button>
+                          <Button variant="outline" disabled={busy} onClick={() => act(() => deleteSlot(selected.id), "Slot o‘chirildi.")}>
+                            O‘chirish
+                          </Button>
+                        </>
+                      ) : null}
 
-                {selected.status === "open" && selected.owner_id !== user.id && selected.kind !== "personal" ? (
-                  <Button disabled={busy} onClick={() => act(() => joinSlot(selected.id), "Siz qo‘shildingiz!")}>
-                    Slotga qo‘shilish
-                  </Button>
-                ) : null}
+                      {selected.status === "open" && !isOwner && selected.kind !== "personal" ? (
+                        <Button disabled={busy} onClick={() => act(() => joinSlot(selected.id), "Siz qo‘shildingiz!")}>
+                          Slotga qo‘shilish
+                        </Button>
+                      ) : null}
 
-                {selected.status === "confirmed" ? (
-                  <Button disabled={busy} onClick={() => act(() => setSlotStatus(selected.id, "in_progress"), "Mashg‘ulot boshlandi.")}>
-                    Boshlash
-                  </Button>
-                ) : null}
+                      {isMember && active && selected.kind !== "personal" ? (
+                        started ? (
+                          myDone ? (
+                            <p className="text-sm text-muted-foreground">
+                              Siz tasdiqladingiz. {otherDone ? "" : "Hamkor tasdiqlashi kutilmoqda."}
+                            </p>
+                          ) : (
+                            <Button
+                              disabled={busy}
+                              onClick={() =>
+                                act(
+                                  () => setSlotStatus(selected.id, "completed"),
+                                  otherDone ? "Yakunlandi — PeerPoint o‘tkazildi." : "Tasdiqlandi. Hamkor ham tasdiqlashi kerak.",
+                                )
+                              }
+                            >
+                              Qatnashganimni tasdiqlash
+                            </Button>
+                          )
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Yakunlash mashg‘ulot boshlangandan keyin ochiladi.</p>
+                        )
+                      ) : null}
 
-                {(selected.status === "confirmed" || selected.status === "in_progress") &&
-                selected.kind !== "personal" ? (
-                  <Button
-                    disabled={busy}
-                    onClick={() => act(() => setSlotStatus(selected.id, "completed"), "Yakunlandi — PeerPoint o‘tkazildi.")}
-                  >
-                    Yakunlash
-                  </Button>
-                ) : null}
-
-                {selected.status !== "completed" && selected.status !== "cancelled" ? (
-                  <Button
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => act(() => setSlotStatus(selected.id, "cancelled"), "Bekor qilindi.")}
-                  >
-                    Bekor qilish
-                  </Button>
-                ) : null}
+                      {isMember && !started && selected.status !== "completed" && selected.status !== "cancelled" ? (
+                        <Button variant="outline" disabled={busy} onClick={() => act(() => setSlotStatus(selected.id, "cancelled"), "Bekor qilindi.")}>
+                          Bekor qilish
+                        </Button>
+                      ) : null}
+                    </>
+                  );
+                })()}
               </DialogFooter>
             </>
           ) : null}
