@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, Globe, MapPin, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -49,7 +49,7 @@ import {
   type CalendarSlot,
   type SlotKind,
 } from "@/lib/calendar";
-import { fetchProfiles, fullName, type ProfileWithSkills } from "@/lib/peerswap";
+import { fetchProfiles, fetchWeeklyPoints, fullName, type ProfileWithSkills } from "@/lib/peerswap";
 
 export const Route = createFileRoute("/calendar")({
   head: () => ({
@@ -82,7 +82,7 @@ type Draft = {
   skill: string;
   date: string;
   start: string;
-  end: string;
+  duration: number;
   is_online: boolean;
   description: string;
 };
@@ -102,6 +102,12 @@ function CalendarPage() {
     enabled: !!user,
   });
   const profilesQuery = useQuery({ queryKey: ["profiles"], queryFn: fetchProfiles, enabled: !!user });
+  const pointsQuery = useQuery({
+    queryKey: ["weekly-points", user?.id],
+    queryFn: () => fetchWeeklyPoints(user!.id),
+    enabled: !!user,
+  });
+  const isFree = (pointsQuery.data?.plan ?? "free") === "free";
 
   const profiles = useMemo(() => profilesQuery.data ?? [], [profilesQuery.data]);
   const nameOf = (id: string | null) => {
@@ -120,7 +126,7 @@ function CalendarPage() {
       skill: "",
       date: toDateInput(day),
       start: `${String(hour).padStart(2, "0")}:00`,
-      end: `${String(Math.min(hour + 1, 23)).padStart(2, "0")}:00`,
+      duration: 30,
       is_online: true,
       description: "",
     });
@@ -134,7 +140,7 @@ function CalendarPage() {
       skill: slot.skill,
       date: toDateInput(new Date(slot.starts_at)),
       start: toTimeInput(new Date(slot.starts_at)),
-      end: toTimeInput(new Date(slot.ends_at)),
+      duration: durationMinutes(slot),
       is_online: slot.is_online,
       description: slot.description,
     });
@@ -147,12 +153,12 @@ function CalendarPage() {
       toast.error("Ko‘nikma nomini yozing.");
       return;
     }
-    const starts = combine(draft.date, draft.start);
-    const ends = combine(draft.date, draft.end);
-    if (ends <= starts) {
-      toast.error("Tugash vaqti boshlanish vaqtidan keyin bo‘lishi kerak.");
+    if (isFree && draft.kind !== "personal" && draft.duration > 30) {
+      toast.error("45 va 60 daqiqalik mashg‘ulotlar uchun obuna kerak.");
       return;
     }
+    const starts = combine(draft.date, draft.start);
+    const ends = new Date(starts.getTime() + draft.duration * 60000);
     setBusy(true);
     try {
       const payload = {
