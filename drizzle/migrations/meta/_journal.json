@@ -57,6 +57,13 @@
       "when": 1790150061125,
       "tag": "0007_create_calendar_slots",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791443795257,
+      "tag": "0008_free_plan_30min_sessions",
+      "breakpoints": true
     }
   ]
 }
