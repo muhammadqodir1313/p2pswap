@@ -40,17 +40,20 @@ export function AppHeader() {
           ))}
         </nav>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={async () => {
-            await signOut();
-            navigate({ to: "/" });
-          }}
-        >
-          <LogOut className="size-4" />
-          Chiqish
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs h-8"
+            onClick={async () => {
+              await signOut();
+              navigate({ to: "/" });
+            }}
+          >
+            <LogOut className="size-3.5 mr-1" />
+            Chiqish
+          </Button>
+        </div>
       </div>
     </header>
   );

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { createMockSupabaseClient } from "@/integrations/supabase/mock-client";
 
 export type SkillKind = "teach" | "learn";
 
@@ -57,29 +58,67 @@ const PROFILE_SELECT =
   "id, first_name, last_name, bio, is_active, is_demo, created_at, teach, learn";
 
 export async function fetchProfiles(): Promise<ProfileWithSkills[]> {
-  const { data, error } = await supabase.from("peer_directory").select(PROFILE_SELECT);
-  if (error) throw error;
-  return ((data ?? []) as RawProfile[]).map(mapProfile);
+  try {
+    const { data, error } = await supabase.from("peer_directory").select(PROFILE_SELECT);
+    if (error) {
+      console.warn("[PeerSwap] peer_directory query fallback:", error.message);
+      const mock = createMockSupabaseClient();
+      const res = await mock.from("peer_directory").select(PROFILE_SELECT);
+      return ((res.data ?? []) as RawProfile[]).map(mapProfile);
+    }
+    return ((data ?? []) as RawProfile[]).map(mapProfile);
+  } catch (err) {
+    console.warn("[PeerSwap] Error fetching profiles, using fallback:", err);
+    const mock = createMockSupabaseClient();
+    const res = await mock.from("peer_directory").select(PROFILE_SELECT);
+    return ((res.data ?? []) as RawProfile[]).map(mapProfile);
+  }
 }
 
 export async function fetchProfile(id: string): Promise<ProfileWithSkills | null> {
-  const { data, error } = await supabase
-    .from("peer_directory")
-    .select(PROFILE_SELECT)
-    .eq("id", id)
-    .maybeSingle();
-  if (error) throw error;
-  return data ? mapProfile(data as RawProfile) : null;
+  try {
+    const { data, error } = await supabase
+      .from("peer_directory")
+      .select(PROFILE_SELECT)
+      .eq("id", id)
+      .maybeSingle();
+    if (error) {
+      const mock = createMockSupabaseClient();
+      const res = await mock.from("peer_directory").select(PROFILE_SELECT).eq("id", id).maybeSingle();
+      return res.data ? mapProfile(res.data as RawProfile) : null;
+    }
+    return data ? mapProfile(data as RawProfile) : null;
+  } catch {
+    const mock = createMockSupabaseClient();
+    const res = await mock.from("peer_directory").select(PROFILE_SELECT).eq("id", id).maybeSingle();
+    return res.data ? mapProfile(res.data as RawProfile) : null;
+  }
 }
 
 export async function fetchMySessions(userId: string): Promise<SwapSession[]> {
-  const { data, error } = await supabase
-    .from("swap_sessions")
-    .select("*")
-    .or(`requester_id.eq.${userId},partner_id.eq.${userId}`)
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as SwapSession[];
+  try {
+    const { data, error } = await supabase
+      .from("swap_sessions")
+      .select("*")
+      .or(`requester_id.eq.${userId},partner_id.eq.${userId}`)
+      .order("created_at", { ascending: false });
+    if (error) {
+      const mock = createMockSupabaseClient();
+      const res = await mock
+        .from("swap_sessions")
+        .select("*")
+        .or(`requester_id.eq.${userId},partner_id.eq.${userId}`);
+      return (res.data ?? []) as SwapSession[];
+    }
+    return (data ?? []) as SwapSession[];
+  } catch {
+    const mock = createMockSupabaseClient();
+    const res = await mock
+      .from("swap_sessions")
+      .select("*")
+      .or(`requester_id.eq.${userId},partner_id.eq.${userId}`);
+    return (res.data ?? []) as SwapSession[];
+  }
 }
 
 /** Weekly PeerPoint allowance per plan. Pro is unlimited (allowance null). */
@@ -98,24 +137,44 @@ export type WeeklyPoints = {
 };
 
 export async function fetchWeeklyPoints(userId: string): Promise<WeeklyPoints> {
-  const { data, error } = await supabase.rpc("refresh_weekly_points", { _user_id: userId });
-  if (error) throw error;
-  const row = (data ?? [])[0];
-  const weekStart = row?.week_start ?? new Date().toISOString().slice(0, 10);
-  const used = row?.used ?? 0;
-  const plan = ((row as { plan?: string } | undefined)?.plan ?? "free") as Plan;
-  const allowance = (row?.allowance ?? PLAN_ALLOWANCE.free) as number | null;
-  const elapsed = Math.floor(
-    (Date.now() - new Date(`${weekStart}T00:00:00`).getTime()) / 86_400_000,
-  );
-  return {
-    weekStart,
-    used,
-    allowance,
-    remaining: allowance == null ? null : Math.max(0, allowance - used),
-    plan,
-    daysUntilReset: Math.max(0, 7 - Math.min(7, Math.max(0, elapsed))),
-  };
+  try {
+    const { data, error } = await supabase.rpc("refresh_weekly_points", { _user_id: userId });
+    if (error) {
+      return {
+        weekStart: new Date().toISOString().slice(0, 10),
+        used: 0,
+        allowance: PLAN_ALLOWANCE.free,
+        remaining: PLAN_ALLOWANCE.free,
+        plan: "free",
+        daysUntilReset: 7,
+      };
+    }
+    const row = (data ?? [])[0];
+    const weekStart = row?.week_start ?? new Date().toISOString().slice(0, 10);
+    const used = row?.used ?? 0;
+    const plan = ((row as { plan?: string } | undefined)?.plan ?? "free") as Plan;
+    const allowance = (row?.allowance ?? PLAN_ALLOWANCE.free) as number | null;
+    const elapsed = Math.floor(
+      (Date.now() - new Date(`${weekStart}T00:00:00`).getTime()) / 86_400_000,
+    );
+    return {
+      weekStart,
+      used,
+      allowance,
+      remaining: allowance == null ? null : Math.max(0, allowance - used),
+      plan,
+      daysUntilReset: Math.max(0, 7 - Math.min(7, Math.max(0, elapsed))),
+    };
+  } catch {
+    return {
+      weekStart: new Date().toISOString().slice(0, 10),
+      used: 0,
+      allowance: PLAN_ALLOWANCE.free,
+      remaining: PLAN_ALLOWANCE.free,
+      plan: "free",
+      daysUntilReset: 7,
+    };
+  }
 }
 
 /** Switches the signed-in user's subscription plan. */

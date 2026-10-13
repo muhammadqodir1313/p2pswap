@@ -5,6 +5,7 @@ import { Coins, GraduationCap, Lightbulb, CheckCircle2 } from "lucide-react";
 import { AppShell } from "@/components/AppHeader";
 import { DashboardAgenda } from "@/components/DashboardAgenda";
 import { MatchCard } from "@/components/MatchCard";
+import { UserDashboardSwapsAndSkills } from "@/components/UserDashboardSwapsAndSkills";
 import { Button } from "@/components/ui/button";
 import { useAuth, useRequireAuth } from "@/lib/auth";
 import { fetchMySessions, fetchProfiles, fetchWeeklyPoints, rankMatches } from "@/lib/peerswap";
@@ -111,6 +112,20 @@ function DashboardPage() {
         />
         <Stat icon={Lightbulb} label="O‘rganmoqchi bo‘lganlarim" value={me?.learn.length ?? 0} />
         <Stat icon={CheckCircle2} label="Yakunlangan mashg‘ulotlar" value={completed} />
+      </div>
+
+      <div className="mt-8">
+        <UserDashboardSwapsAndSkills
+          user={user}
+          myProfile={me}
+          allProfiles={profiles}
+          sessions={sessions}
+          onRefresh={() => {
+            void profilesQuery.refetch();
+            void sessionsQuery.refetch();
+            void pointsQuery.refetch();
+          }}
+        />
       </div>
 
       <DashboardAgenda userId={user.id} profiles={profiles} />

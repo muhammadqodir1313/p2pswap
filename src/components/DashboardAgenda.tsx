@@ -93,18 +93,33 @@ export function DashboardAgenda({
                     <p className="font-semibold">{toTimeInput(st)}</p>
                     <p className="text-muted-foreground">{toTimeInput(new Date(s.ends_at))}</p>
                   </div>
-                  <div className={"flex-1 rounded-lg border px-3 py-2 " + slotColor(s)}>
-                    <p className="text-sm font-semibold">
-                      {s.kind === "personal" ? s.skill : `${KIND_LABEL[s.kind]}: ${s.skill}`}
-                    </p>
-                    <p className="text-xs opacity-80">
-                      {!isSameDay(st, today) ? `${formatDayLabel(st)} · ` : ""}
-                      {other
-                        ? `${nameOf(other)} bilan`
-                        : s.kind === "personal"
-                          ? "Shaxsiy"
-                          : "Ochiq slot"}
-                    </p>
+                  <div
+                    className={
+                      "flex-1 rounded-lg border px-3 py-2 flex items-center justify-between gap-2 " +
+                      slotColor(s)
+                    }
+                  >
+                    <div>
+                      <p className="text-sm font-semibold">
+                        {s.kind === "personal" ? s.skill : `${KIND_LABEL[s.kind]}: ${s.skill}`}
+                      </p>
+                      <p className="text-xs opacity-80">
+                        {!isSameDay(st, today) ? `${formatDayLabel(st)} · ` : ""}
+                        {other
+                          ? `${nameOf(other)} bilan`
+                          : s.kind === "personal"
+                            ? "Shaxsiy"
+                            : "Ochiq slot"}
+                      </p>
+                    </div>
+                    {other ? (
+                      <Link
+                        to="/calendar"
+                        className="rounded bg-background/80 hover:bg-background px-2.5 py-1 text-xs font-medium text-foreground transition-colors shrink-0 flex items-center gap-1 shadow-sm"
+                      >
+                        Suhbat & Video →
+                      </Link>
+                    ) : null}
                   </div>
                 </li>
               );

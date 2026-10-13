@@ -1,10 +1,6 @@
-import { createOpenAI } from "@ai-sdk/openai";
 import { createServerFn } from "@tanstack/react-start";
-import { Output, streamText } from "ai";
 import { z } from "zod";
-
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createLovableAiGatewayRunIdFetch } from "./ai-gateway.server";
 
 const RecommendInput = z.object({
   need: z.string().min(3).max(600),
@@ -12,23 +8,6 @@ const RecommendInput = z.object({
 });
 
 export type RecommendQuality = "fast" | "balanced" | "deep";
-
-const EFFORT: Record<RecommendQuality, "low" | "medium" | "high"> = {
-  fast: "low",
-  balanced: "medium",
-  deep: "high",
-};
-
-const RecommendationSchema = z.object({
-  recommendations: z.array(
-    z.object({
-      id: z.string(),
-      score: z.number(),
-      reason: z.string(),
-    }),
-  ),
-  note: z.string(),
-});
 
 export type PartnerRecommendation = {
   id: string;
@@ -49,13 +28,90 @@ type Candidate = {
   learn: string[];
 };
 
+function normalizeText(text: string): string {
+  return text.toLowerCase().trim();
+}
+
+function calculateMatch(
+  need: string,
+  userTeach: string[],
+  userLearn: string[],
+  candidate: Candidate,
+): { score: number; reason: string } {
+  const normNeed = normalizeText(need);
+  const needWords = normNeed.split(/[\s,.;:!?/()]+/).filter((w) => w.length >= 2);
+
+  let directTeachMatch: string | null = null;
+  let partialTeachMatch: string | null = null;
+
+  for (const skill of candidate.teach) {
+    const normSkill = normalizeText(skill);
+    if (normNeed.includes(normSkill) || normSkill.includes(normNeed)) {
+      directTeachMatch = skill;
+      break;
+    }
+    if (needWords.some((w) => normSkill.includes(w) || w.includes(normSkill))) {
+      partialTeachMatch = skill;
+    }
+  }
+
+  // Check reciprocal learning match (candidate wants what user teaches)
+  let reciprocalMatch: string | null = null;
+  for (const mySkill of userTeach) {
+    const normMySkill = normalizeText(mySkill);
+    for (const candLearn of candidate.learn) {
+      const normCandLearn = normalizeText(candLearn);
+      if (normCandLearn.includes(normMySkill) || normMySkill.includes(normCandLearn)) {
+        reciprocalMatch = mySkill;
+        break;
+      }
+    }
+    if (reciprocalMatch) break;
+  }
+
+  // Base score calculation
+  let score = 50;
+  const reasons: string[] = [];
+
+  if (directTeachMatch) {
+    score += 35;
+    reasons.push(`"${directTeachMatch}" bo‘yicha aynan siz izlagan bilimlarni o‘rgata oladi.`);
+  } else if (partialTeachMatch) {
+    score += 25;
+    reasons.push(`"${partialTeachMatch}" ko‘nikmasi sizning ehtiyojingiz bilan yaqin mos keladi.`);
+  } else if (candidate.teach.length > 0) {
+    score += 15;
+    reasons.push(
+      `"${candidate.teach.slice(0, 2).join(", ")}" yo‘nalishlarida kuchli tajribaga ega.`,
+    );
+  }
+
+  if (reciprocalMatch) {
+    score += 15;
+    reasons.push(
+      `Siz o‘rgata oladigan "${reciprocalMatch}" hamkorga ham juda qiziq (ikki tomonlama ideal almashinuv!).`,
+    );
+  }
+
+  if (candidate.bio && needWords.some((w) => normalizeText(candidate.bio).includes(w))) {
+    score += 5;
+  }
+
+  // Clamp score
+  score = Math.min(99, Math.max(60, score));
+
+  const reasonText =
+    reasons.length > 0
+      ? reasons.join(" ")
+      : `Hamkor ko‘nikmalari va tajribasi sizning qiziqishlaringizga mos keladi.`;
+
+  return { score, reason: reasonText };
+}
+
 export const recommendPartners = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => RecommendInput.parse(input))
   .handler(async ({ data, context }): Promise<RecommendPartnersResult> => {
-    const apiKey = process.env["LOVABLE_API_KEY"];
-    if (!apiKey) throw new Error("Missing LOVABLE_API_KEY");
-
     const { supabase, userId } = context;
 
     const { data: rows, error } = await supabase
@@ -88,71 +144,38 @@ export const recommendPartners = createServerFn({ method: "POST" })
       return { recommendations: [], note: "Hozircha tavsiya qilish uchun faol hamkor yo‘q." };
     }
 
-    const runIdFetch = createLovableAiGatewayRunIdFetch();
-    const lovable = createOpenAI({
-      baseURL: "https://ai.gateway.lovable.dev/v1",
-      apiKey,
-      headers: { "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
-      fetch: runIdFetch.fetch,
+    const scored = candidates.map((cand) => {
+      const match = calculateMatch(data.need, me?.teach ?? [], me?.learn ?? [], cand);
+      return {
+        id: cand.id,
+        score: match.score,
+        reason: match.reason,
+      };
     });
 
-    const result = streamText({
-      model: lovable.responses("openai/gpt-6-astra"),
-      output: Output.object({ schema: RecommendationSchema }),
-      system: [
-        "Siz PeerSwap platformasining mos hamkor tanlovchisisiz.",
-        "Faqat berilgan nomzodlar ro‘yxatidan tanlang va faqat ularning `id` qiymatlarini qaytaring.",
-        "Eng ko‘pi bilan 5 ta nomzod tavsiya qiling, mos kelmasa bo‘sh ro‘yxat qaytaring.",
-        "`score` 0 dan 100 gacha butun son. `reason` va `note` faqat o‘zbek tilida, qisqa (1-2 jumla).",
-        "Nomzodning o‘rgata oladigan ko‘nikmasi foydalanuvchi ehtiyojiga mos kelishi asosiy mezon;",
-        "ikki tomonlama almashinuv imkoniyati (foydalanuvchi o‘rgata oladigan narsa nomzodga kerak bo‘lishi) qo‘shimcha ustunlik beradi.",
-        data.quality === "fast"
-          ? "Tez javob bering: eng aniq 3 ta nomzodni qisqa izoh bilan ko‘rsating."
-          : data.quality === "deep"
-            ? "Chuqur tahlil qiling: har bir nomzodning kuchli va zaif tomonlarini hisobga olib, izohda aynan qaysi ko‘nikma mos kelishini yozing."
-            : "Muvozanatli tahlil qiling: mos ko‘nikmani va almashinuv imkoniyatini izohda aniq ko‘rsating.",
-      ].join(" "),
-      prompt: JSON.stringify({
-        user: {
-          teach: me?.teach ?? [],
-          learn: me?.learn ?? [],
-          bio: me?.bio ?? "",
-          need: data.need,
-        },
-        candidates,
-      }),
-      providerOptions: {
-        openai: {
-          forceReasoning: true,
-          reasoningEffort: EFFORT[data.quality],
-          reasoningSummary: "auto",
-          store: false,
-          include: ["reasoning.encrypted_content"],
-        },
-      },
-    });
+    // Sort descending by score
+    scored.sort((a, b) => b.score - a.score);
 
-    const output = await result.output;
-    const valid = new Set(candidates.map((c) => c.id));
+    const maxCount = data.quality === "fast" ? 3 : 5;
+    const recommendations: PartnerRecommendation[] = scored.slice(0, maxCount);
 
-    const recommendations = output.recommendations
-      .filter((r) => valid.has(r.id))
-      .slice(0, 5)
-      .map((r) => ({
-        id: r.id,
-        score: Math.max(0, Math.min(100, Math.round(r.score))),
-        reason: r.reason,
-      }));
+    const note =
+      recommendations.length > 0
+        ? `"${data.need}" bo‘yicha eng mos ${recommendations.length} ta hamkor saralab olindi.`
+        : "Afsuski, kiritilgan talabga mos hamkor hozircha topilmadi.";
 
-    // Tavsiyalarni tarix uchun saqlaymiz (RLS: faqat egasi va admin o‘qiy oladi).
-    const { error: saveError } = await supabase.from("ai_recommendations").insert({
-      user_id: userId,
-      need: data.need,
-      quality: data.quality,
-      note: output.note,
-      recommendations,
-    });
-    if (saveError) console.error("ai_recommendations insert failed", saveError.message);
+    // Save recommendations history (RLS: owner and admin only)
+    try {
+      await supabase.from("ai_recommendations").insert({
+        user_id: userId,
+        need: data.need,
+        quality: data.quality,
+        note,
+        recommendations,
+      });
+    } catch (saveError) {
+      console.warn("ai_recommendations insert warning", saveError);
+    }
 
-    return { recommendations, note: output.note };
+    return { recommendations, note };
   });

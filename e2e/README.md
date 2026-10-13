@@ -8,7 +8,7 @@ Run against the running dev server:
 
 ```bash
 npm run test:e2e          # or: python3 e2e/full_flow.py
-BASE_URL=https://your-app.lovable.app python3 e2e/full_flow.py
+BASE_URL=http://localhost:3000 python3 e2e/full_flow.py
 ```
 
 Requires Python with Playwright installed (`pip install playwright && playwright install chromium`).

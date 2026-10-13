@@ -39,7 +39,11 @@ function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) {
-      toast.error("Email yoki parol noto‘g‘ri. Qayta urinib ko‘ring.");
+      if (error.message.toLowerCase().includes("email not confirmed")) {
+        toast.error("Elektron pochtangiz hali tasdiqlanmagan. Iltimos, pochtangizga kelgan xat orqali tasdiqlang.");
+      } else {
+        toast.error("Email yoki parol noto‘g‘ri. Qayta urinib ko‘ring.");
+      }
       return;
     }
     toast.success("Xush kelibsiz!");
