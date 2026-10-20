@@ -3,6 +3,7 @@
 PeerSwap — foydalanuvchilar o‘z bilim va tajribalarini bir-birlari bilan tengma-teng (peer-to-peer) almashishlari uchun mo‘ljallangan interaktiv platforma.
 
 ## Imkoniyatlar
+
 - Ko‘nikmalarni qidirish va filtrlash
 - Profil va ko‘nikmalar boshqaruvi
 - Jonli real vaqt rejimidagi chat

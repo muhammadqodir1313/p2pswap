@@ -12,12 +12,16 @@ import {
   Plus,
   ShieldCheck,
   CheckCircle2,
+  Flag,
+  AlertTriangle,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ReportUserModal } from "@/components/ReportUserModal";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -28,7 +32,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/firebase";
+import { collection, doc, getDocs, query, updateDoc, where } from "firebase/firestore";
 import { useAuth, useRequireAuth } from "@/lib/auth";
 import {
   fetchMySessions,
@@ -71,7 +76,10 @@ function SessionsPage() {
   const [videoSession, setVideoSession] = useState<SwapSession | null>(null);
   const [reviewSession, setReviewSession] = useState<SwapSession | null>(null);
   const [editingSession, setEditingSession] = useState<SwapSession | null>(null);
+  const [reportingSession, setReportingSession] = useState<SwapSession | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+
+  const userId = user?.uid ?? "";
 
   const profilesQuery = useQuery({
     queryKey: ["profiles"],
@@ -79,31 +87,36 @@ function SessionsPage() {
     enabled: !!user,
   });
   const sessionsQuery = useQuery({
-    queryKey: ["sessions", user?.id],
-    queryFn: () => fetchMySessions(user!.id),
+    queryKey: ["sessions", userId],
+    queryFn: () => fetchMySessions(userId),
     enabled: !!user,
   });
   const feedbackQuery = useQuery({
-    queryKey: ["feedback", user?.id],
+    queryKey: ["feedback", userId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("feedback")
-        .select("session_id")
-        .eq("user_id", user!.id);
-      if (error) throw error;
-      return (data ?? []).map((row) => row.session_id as string);
+      const q = query(collection(db, "feedback"), where("user_id", "==", userId));
+      const snap = await getDocs(q);
+      const sessionIds: string[] = [];
+      snap.forEach((d) => {
+        const sid = d.data().session_id;
+        if (sid) sessionIds.push(sid);
+      });
+      return sessionIds;
     },
     enabled: !!user,
   });
 
   const profiles = useMemo(() => profilesQuery.data ?? [], [profilesQuery.data]);
-  const myProfile = useMemo(() => profiles.find((p) => p.id === user?.id), [profiles, user?.id]);
+  const myProfile = useMemo(() => profiles.find((p) => p.id === userId), [profiles, userId]);
   const myName = myProfile ? fullName(myProfile) : "Siz";
 
   if (loading || !user) return null;
 
   const sessions = sessionsQuery.data ?? [];
   const byStatus = (status: SwapSession["status"]) => sessions.filter((s) => s.status === status);
+  const disputedCount = sessions.filter(
+    (s) => s.status === "disputed" || s.status === "needs_review",
+  ).length;
 
   const refresh = () => {
     sessionsQuery.refetch();
@@ -112,7 +125,7 @@ function SessionsPage() {
   };
 
   const partnerOf = (s: SwapSession) => {
-    const pId = s.requester_id === user.id ? s.partner_id : s.requester_id;
+    const pId = s.requester_id === userId ? s.partner_id : s.requester_id;
     return profiles.find((p) => p.id === pId);
   };
 
@@ -142,6 +155,11 @@ function SessionsPage() {
           </TabsTrigger>
           <TabsTrigger value="pending">Kutilmoqda ({byStatus("pending").length})</TabsTrigger>
           <TabsTrigger value="completed">Yakunlangan ({byStatus("completed").length})</TabsTrigger>
+          {disputedCount > 0 && (
+            <TabsTrigger value="disputed" className="text-amber-400">
+              Nizoli / Tekshiruvda ({disputedCount})
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {(["accepted", "pending", "completed"] as const).map((status) => (
@@ -171,11 +189,34 @@ function SessionsPage() {
                   onOpenVideo={() => setVideoSession(session)}
                   onOpenReview={() => setReviewSession(session)}
                   onEdit={() => setEditingSession(session)}
+                  onReportUser={() => setReportingSession(session)}
                 />
               ))
             )}
           </TabsContent>
         ))}
+
+        {disputedCount > 0 && (
+          <TabsContent value="disputed" className="mt-4 space-y-4">
+            {sessions
+              .filter((s) => s.status === "disputed" || s.status === "needs_review")
+              .map((session) => (
+                <SessionCard
+                  key={session.id}
+                  session={session}
+                  meId={user.id}
+                  profiles={profiles}
+                  hasFeedback={(feedbackQuery.data ?? []).includes(session.id)}
+                  onChanged={refresh}
+                  onOpenChat={() => setChatSession(session)}
+                  onOpenVideo={() => setVideoSession(session)}
+                  onOpenReview={() => setReviewSession(session)}
+                  onEdit={() => setEditingSession(session)}
+                  onReportUser={() => setReportingSession(session)}
+                />
+              ))}
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* CHAT MODAL */}
@@ -216,11 +257,11 @@ function SessionsPage() {
           isOpen={!!videoSession}
           onClose={() => setVideoSession(null)}
           sessionId={videoSession.id}
-          userId={user.id}
+          userId={userId}
           userName={myName}
-          isOwner={videoSession.requester_id === user.id}
+          isOwner={videoSession.requester_id === userId}
           partnerId={
-            videoSession.requester_id === user.id
+            videoSession.requester_id === userId
               ? videoSession.partner_id
               : videoSession.requester_id
           }
@@ -228,7 +269,7 @@ function SessionsPage() {
             partnerOf(videoSession) ? fullName(partnerOf(videoSession)!) : "PeerSwap a’zosi"
           }
           skillName={
-            videoSession.requester_id === user.id
+            videoSession.requester_id === userId
               ? videoSession.partner_teaches
               : videoSession.requester_teaches
           }
@@ -247,13 +288,18 @@ function SessionsPage() {
           onClose={() => setReviewSession(null)}
           sessionId={reviewSession.id}
           isCalendarSlot={false}
-          userId={user.id}
-          isOwner={reviewSession.requester_id === user.id}
+          userId={userId}
+          partnerId={
+            reviewSession.requester_id === userId
+              ? reviewSession.partner_id
+              : reviewSession.requester_id
+          }
+          isOwner={reviewSession.requester_id === userId}
           partnerName={
             partnerOf(reviewSession) ? fullName(partnerOf(reviewSession)!) : "PeerSwap a’zosi"
           }
           skillName={
-            reviewSession.requester_id === user.id
+            reviewSession.requester_id === userId
               ? reviewSession.partner_teaches
               : reviewSession.requester_teaches
           }
@@ -261,6 +307,24 @@ function SessionsPage() {
             setReviewSession(null);
             refresh();
           }}
+        />
+      )}
+
+      {/* REPORT USER MODAL */}
+      {reportingSession && (
+        <ReportUserModal
+          isOpen={!!reportingSession}
+          onClose={() => setReportingSession(null)}
+          reportedUserId={
+            reportingSession.requester_id === userId
+              ? reportingSession.partner_id
+              : reportingSession.requester_id
+          }
+          reportedUserName={
+            partnerOf(reportingSession) ? fullName(partnerOf(reportingSession)!) : "PeerSwap a’zosi"
+          }
+          reporterUserId={userId}
+          sessionId={reportingSession.id}
         />
       )}
 
@@ -290,6 +354,7 @@ function SessionCard({
   onOpenVideo,
   onOpenReview,
   onEdit,
+  onReportUser,
 }: {
   session: SwapSession;
   meId: string;
@@ -300,6 +365,7 @@ function SessionCard({
   onOpenVideo: () => void;
   onOpenReview: () => void;
   onEdit: () => void;
+  onReportUser: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [recordings, setRecordings] = useState<SessionRecording[]>([]);
@@ -317,33 +383,72 @@ function SessionCard({
 
   async function accept() {
     setBusy(true);
-    const { error } = await supabase
-      .from("swap_sessions")
-      .update({ status: "accepted" })
-      .eq("id", session.id);
-    setBusy(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      await updateDoc(doc(db, "swap_sessions", session.id), { status: "accepted" });
+      toast.success("Almashinuv qabul qilindi! Chat va video dars ochildi.");
+      onChanged();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(msg);
+    } finally {
+      setBusy(false);
     }
-    toast.success("Almashinuv qabul qilindi! Chat va video dars ochildi.");
-    onChanged();
   }
 
   async function cancelSession() {
     setBusy(true);
-    const { error } = await supabase
-      .from("swap_sessions")
-      .update({ status: "pending" })
-      .eq("id", session.id);
-    setBusy(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      await updateDoc(doc(db, "swap_sessions", session.id), { status: "pending" });
+      toast.info("Mashg‘ulot bekor qilindi. Coinlar saqlandi.");
+      onChanged();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(msg);
+    } finally {
+      setBusy(false);
     }
-    toast.info("Mashg‘ulot bekor qilindi. Coinlar saqlandi.");
-    onChanged();
   }
+
+  const getStatusBadge = () => {
+    switch (session.status) {
+      case "pending":
+        return (
+          <span className="rounded-full border border-border bg-secondary px-3 py-1 text-xs text-muted-foreground">
+            Kutilmoqda
+          </span>
+        );
+      case "accepted":
+        return (
+          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-400">
+            Rejalashtirilgan (Jonli)
+          </span>
+        );
+      case "completed":
+        return (
+          <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs text-primary">
+            Yakunlangan
+          </span>
+        );
+      case "disputed":
+        return (
+          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-400">
+            Nizoli (No-show)
+          </span>
+        );
+      case "needs_review":
+        return (
+          <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-xs text-rose-400">
+            Tekshiruvda (48s)
+          </span>
+        );
+      default:
+        return (
+          <span className="rounded-full border border-border bg-secondary px-3 py-1 text-xs capitalize text-muted-foreground">
+            {session.status}
+          </span>
+        );
+    }
+  };
 
   return (
     <article className="surface-card p-5">
@@ -359,14 +464,35 @@ function SessionCard({
             {formatDate(session.created_at)}
           </p>
         </div>
-        <span className="rounded-full border border-border bg-secondary px-3 py-1 text-xs capitalize text-muted-foreground">
-          {session.status === "pending"
-            ? "Kutilmoqda"
-            : session.status === "accepted"
-              ? "Rejalashtirilgan (Jonli)"
-              : "Yakunlangan"}
-        </span>
+        {getStatusBadge()}
       </div>
+
+      {/* Disputed / Needs review warning alerts */}
+      {session.status === "disputed" && (
+        <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300 flex items-start gap-2">
+          <AlertTriangle className="size-4 shrink-0 text-amber-400 mt-0.5" />
+          <div>
+            <p className="font-semibold">Mashg‘ulot nizoli (No-show qayd etilgan)</p>
+            <p className="text-amber-200/80 mt-0.5">
+              {session.no_show_reason ||
+                "Ishtirokchilardan biri darsga kelmaganlik haqida xabar berdi. Balansdan PeerPoint yechilmadi."}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {session.status === "needs_review" && (
+        <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300 flex items-start gap-2">
+          <ShieldAlert className="size-4 shrink-0 text-rose-400 mt-0.5" />
+          <div>
+            <p className="font-semibold">Administrator tekshiruvida</p>
+            <p className="text-rose-200/80 mt-0.5">
+              {session.review_reason ||
+                "Bir tomonlama tasdiqlash 48 soatdan oshgani sababli tizim tomonidan ma’muriyat tekshiruviga yuborildi."}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Saved lesson recordings */}
       {recordings.length > 0 && (
@@ -442,14 +568,27 @@ function SessionCard({
             <Button
               size="sm"
               variant="outline"
-              onClick={cancelSession}
+              onClick={onOpenReview}
               disabled={busy}
               className="text-amber-400 border-amber-500/30 hover:bg-amber-500/10 text-xs"
+              title="Hamkor darsga qatnashmagan bo‘lsa no-show qayd qilish"
             >
-              Qatnashmadim / Bekor qilish
+              <AlertTriangle className="size-3.5 mr-1" />
+              Hamkor kelmadi (No-show)
             </Button>
           </>
         ) : null}
+
+        {/* Global Report User action button */}
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onReportUser}
+          className="text-xs text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 gap-1.5 ml-auto"
+          title="Foydalanuvchi yoki mashg‘ulot yuzasidan shikoyat qilish"
+        >
+          <Flag className="size-3.5 text-rose-400" /> Shikoyat qilish
+        </Button>
       </div>
 
       {session.status === "completed" ? (
@@ -507,20 +646,19 @@ function EditSessionModal({
 
   async function handleSave() {
     setBusy(true);
-    const { error } = await supabase
-      .from("swap_sessions")
-      .update({
+    try {
+      await updateDoc(doc(db, "swap_sessions", session.id), {
         requester_teaches: reqTeaches.trim(),
         partner_teaches: partTeaches.trim(),
-      })
-      .eq("id", session.id);
-    setBusy(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+      });
+      toast.success("Sessiya ma’lumotlari yangilandi!");
+      onSaved();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(msg);
+    } finally {
+      setBusy(false);
     }
-    toast.success("Sessiya ma’lumotlari yangilandi!");
-    onSaved();
   }
 
   return (

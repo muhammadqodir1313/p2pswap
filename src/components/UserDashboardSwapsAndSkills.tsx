@@ -21,7 +21,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc, deleteDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import {
   fullName,
   initials,
@@ -117,76 +118,73 @@ export function UserDashboardSwapsAndSkills({
     }
 
     setSavingSkill(true);
-    const { error } = await supabase.from("user_skills").insert({ user_id: user.id, skill, kind });
-    setSavingSkill(false);
-
-    if (error && !error.message.includes("duplicate")) {
-      toast.error(`Ko‘nikmani qo‘shib bo‘lmadi: ${error.message}`);
-      return;
+    try {
+      const field = kind === "teach" ? "teach" : "learn";
+      await updateDoc(doc(db, "profiles", user.id), {
+        [field]: arrayUnion(skill),
+      });
+      if (kind === "teach") setTeachInput("");
+      else setLearnInput("");
+      toast.success(`«${skill}» muvaffaqiyatli qo‘shildi!`);
+      onRefresh();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Ko‘nikmani qo‘shib bo‘lmadi: ${msg}`);
+    } finally {
+      setSavingSkill(false);
     }
-
-    if (kind === "teach") setTeachInput("");
-    else setLearnInput("");
-
-    toast.success(`«${skill}» muvaffaqiyatli qo‘shildi!`);
-    onRefresh();
   };
 
   // Remove a skill
   const handleRemoveSkill = async (kind: SkillKind, skill: string) => {
     setSavingSkill(true);
-    const { error } = await supabase
-      .from("user_skills")
-      .delete()
-      .eq("user_id", user.id)
-      .eq("kind", kind)
-      .eq("skill", skill);
-    setSavingSkill(false);
-
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      const field = kind === "teach" ? "teach" : "learn";
+      await updateDoc(doc(db, "profiles", user.id), {
+        [field]: arrayRemove(skill),
+      });
+      toast.info(`«${skill}» olib tashlandi.`);
+      onRefresh();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(msg);
+    } finally {
+      setSavingSkill(false);
     }
-
-    toast.info(`«${skill}» olib tashlandi.`);
-    onRefresh();
   };
 
   // Accept incoming request
   const handleAcceptRequest = async (s: SwapSession) => {
     setActiveActionId(s.id);
-    const { error } = await supabase
-      .from("swap_sessions")
-      .update({ status: "accepted" })
-      .eq("id", s.id);
-    setActiveActionId(null);
-
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      await updateDoc(doc(db, "swap_sessions", s.id), { status: "accepted" });
+      toast.success("Almashinuv so‘rovi qabul qilindi! Chat va video dars faollashdi.");
+      onRefresh();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(msg);
+    } finally {
+      setActiveActionId(null);
     }
-
-    toast.success("Almashinuv so‘rovi qabul qilindi! Chat va video dars faollashdi.");
-    onRefresh();
   };
 
   // Decline or cancel request
   const handleDeclineRequest = async (s: SwapSession, isIncoming: boolean) => {
     setActiveActionId(s.id);
-    const { error } = await supabase.from("swap_sessions").delete().eq("id", s.id);
-    setActiveActionId(null);
-
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      await deleteDoc(doc(db, "swap_sessions", s.id));
+      if (isIncoming) {
+        toast.info("So‘rov rad etildi.");
+      } else {
+        toast.info("Yuborilgan so‘rov bekor qilindi.");
+      }
+      onRefresh();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(msg);
+    } finally {
+      setActiveActionId(null);
     }
-
-    if (isIncoming) {
-      toast.info("So‘rov rad etildi.");
-    } else {
-      toast.info("Yuborilgan so‘rov bekor qilindi.");
-    }
-    onRefresh();
   };
 
   return (

@@ -232,7 +232,7 @@ export type Database = {
           is_demo: boolean;
           last_name: string;
           peercoins: number;
-          plan: string;
+          plan: "free" | "premium" | "pro";
           week_start: string;
           weekly_points_used: number;
         };
@@ -246,7 +246,7 @@ export type Database = {
           is_demo?: boolean;
           last_name?: string;
           peercoins?: number;
-          plan?: string;
+          plan?: "free" | "premium" | "pro";
           week_start?: string;
           weekly_points_used?: number;
         };
@@ -260,7 +260,7 @@ export type Database = {
           is_demo?: boolean;
           last_name?: string;
           peercoins?: number;
-          plan?: string;
+          plan?: "free" | "premium" | "pro";
           week_start?: string;
           weekly_points_used?: number;
         };
@@ -465,7 +465,7 @@ export type Database = {
         Args: { _user_id: string };
         Returns: {
           allowance: number;
-          plan: string;
+          plan: "free" | "premium" | "pro";
           used: number;
           week_start: string;
         }[];
@@ -500,7 +500,7 @@ export type Database = {
         Returns: undefined;
       };
       spend_peerpoint: { Args: never; Returns: number };
-      weekly_allowance_for: { Args: { _plan: string }; Returns: number };
+      weekly_allowance_for: { Args: { _plan: "free" | "premium" | "pro" }; Returns: number };
     };
     Enums: {
       app_role: "admin" | "user";

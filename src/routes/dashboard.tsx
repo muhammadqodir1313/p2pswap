@@ -34,31 +34,33 @@ function DashboardPage() {
   const { user } = useRequireAuth();
   const { loading } = useAuth();
 
+  const userId = user?.uid ?? "";
+
   const profilesQuery = useQuery({
     queryKey: ["profiles"],
     queryFn: fetchProfiles,
     enabled: !!user,
   });
   const sessionsQuery = useQuery({
-    queryKey: ["sessions", user?.id],
-    queryFn: () => fetchMySessions(user!.id),
+    queryKey: ["sessions", userId],
+    queryFn: () => fetchMySessions(userId),
     enabled: !!user,
   });
   const pointsQuery = useQuery({
-    queryKey: ["weekly-points", user?.id],
-    queryFn: () => fetchWeeklyPoints(user!.id),
+    queryKey: ["weekly-points", userId],
+    queryFn: () => fetchWeeklyPoints(userId),
     enabled: !!user,
   });
 
   if (loading || !user) return null;
 
   const profiles = profilesQuery.data ?? [];
-  const me = profiles.find((p) => p.id === user.id);
+  const me = profiles.find((p) => p.id === userId);
   const sessions = sessionsQuery.data ?? [];
   const completed = sessions.filter((s) => s.status === "completed").length;
   const matches = me ? rankMatches(me, profiles).slice(0, 5) : [];
   const requestedIds = new Set(
-    sessions.map((s) => (s.requester_id === user.id ? s.partner_id : s.requester_id)),
+    sessions.map((s) => (s.requester_id === userId ? s.partner_id : s.requester_id)),
   );
   const points = pointsQuery.data;
   const isUnlimited = points?.allowance == null && points != null;
@@ -116,7 +118,7 @@ function DashboardPage() {
 
       <div className="mt-8">
         <UserDashboardSwapsAndSkills
-          user={user}
+          user={{ id: userId, email: user.email || "" }}
           myProfile={me}
           allProfiles={profiles}
           sessions={sessions}
@@ -128,7 +130,7 @@ function DashboardPage() {
         />
       </div>
 
-      <DashboardAgenda userId={user.id} profiles={profiles} />
+      <DashboardAgenda userId={userId} profiles={profiles} />
 
       <div className="mt-10 flex items-center justify-between gap-4">
         <h2 className="text-xl font-semibold tracking-tight">Sizga mos hamkorlar</h2>
@@ -154,7 +156,7 @@ function DashboardPage() {
               key={m.profile.id}
               profile={m.profile}
               match={m.match}
-              meId={user.id}
+              meId={userId}
               alreadyRequested={requestedIds.has(m.profile.id)}
               pointsLeft={isUnlimited ? null : (remaining ?? 0)}
               onRequested={() => sessionsQuery.refetch()}

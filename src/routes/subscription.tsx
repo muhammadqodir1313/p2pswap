@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, Sparkles, Zap } from "lucide-react";
+import { Check, Sparkles, Zap, AlertCircle, CreditCard } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -112,14 +112,15 @@ const PLANS: PlanCard[] = [
 function SubscriptionPage() {
   const { user } = useRequireAuth();
   const { loading } = useAuth();
+  const userId = user?.uid ?? "";
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<PlanCard | null>(null);
   const [step, setStep] = useState<"confirm" | "done">("confirm");
   const [pending, setPending] = useState(false);
 
   const pointsQuery = useQuery({
-    queryKey: ["weekly-points", user?.id],
-    queryFn: () => fetchWeeklyPoints(user!.id),
+    queryKey: ["weekly-points", userId],
+    queryFn: () => fetchWeeklyPoints(userId),
     enabled: !!user,
   });
 
@@ -128,15 +129,29 @@ function SubscriptionPage() {
   const points = pointsQuery.data;
   const currentPlan: Plan = points?.plan ?? "free";
 
-  async function applyPlan(plan: Plan) {
+  async function handleDowngradeToFree() {
     setPending(true);
     try {
-      await updateMyPlan(user!.id, plan);
-      await queryClient.invalidateQueries({ queryKey: ["weekly-points", user!.id] });
+      await updateMyPlan(userId, "free");
+      await queryClient.invalidateQueries({ queryKey: ["weekly-points", userId] });
       await queryClient.invalidateQueries({ queryKey: ["profiles"] });
+      toast.success("Bepul tarifga qaytdingiz — haftasiga 3 ta dars kvotasi.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Tarifni o‘zgartirib bo‘lmadi: ${msg}`);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function handleSubmitUpgradeRequest(targetPlan: "premium" | "pro") {
+    setPending(true);
+    try {
+      await updateMyPlan(userId, targetPlan);
       setStep("done");
-    } catch {
-      toast.error("Tarifni o‘zgartirib bo‘lmadi. Qayta urinib ko‘ring.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`So‘rov yuborishda xatolik: ${msg}`);
     } finally {
       setPending(false);
     }
@@ -154,8 +169,8 @@ function SubscriptionPage() {
 
   function buttonLabel(plan: PlanCard) {
     if (plan.id === currentPlan) return "Joriy tarif";
-    if (plan.id === "free") return "Bepul tarifga o‘tish";
-    return `${plan.name.charAt(0) + plan.name.slice(1).toLowerCase()} tarifiga o‘tish`;
+    if (plan.id === "free") return "Bepul tarifga qaytish";
+    return `${plan.name.charAt(0) + plan.name.slice(1).toLowerCase()} tarifini tanlash`;
   }
 
   return (
@@ -224,11 +239,10 @@ function SubscriptionPage() {
               <Button
                 className="mt-6"
                 variant={isCurrent ? "outline" : plan.featured ? "default" : "secondary"}
-                disabled={isCurrent}
+                disabled={isCurrent || pending}
                 onClick={() => {
                   if (plan.id === "free") {
-                    void applyPlan("free");
-                    toast.success("Bepul tarifga o‘tdingiz — haftasiga 3 PeerPoint.");
+                    void handleDowngradeToFree();
                     return;
                   }
                   setStep("confirm");
@@ -242,43 +256,70 @@ function SubscriptionPage() {
         })}
       </div>
 
-      <p className="mt-8 text-center text-xs text-muted-foreground">
-        Bu sinov talqini — to‘lov olinmaydi. Tarif o‘zgartirilganda haftalik PeerPointlaringiz
-        darhol yangilanadi.
+      <p className="mt-8 text-center text-xs text-muted-foreground max-w-xl mx-auto leading-relaxed">
+        To‘lov tizimlari (Click / Payme) integratsiya jarayonida. Hozirda barcha foydalanuvchilar
+        Bepul tarif doirasida haftasiga 3 ta dars almashish imkoniyatiga ega.
       </p>
 
       <Dialog open={selected !== null} onOpenChange={(open) => !open && setSelected(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           {step === "confirm" ? (
             <>
               <DialogHeader>
                 <DialogTitle>{selected?.modalTitle}</DialogTitle>
                 <DialogDescription>{selected?.modalBody}</DialogDescription>
               </DialogHeader>
-              <p className="text-2xl font-bold">
-                {selected?.price}
-                <span className="text-sm font-normal text-muted-foreground"> / oyiga</span>
-              </p>
-              <DialogFooter>
+
+              <div className="space-y-3 py-2">
+                <p className="text-2xl font-bold">
+                  {selected?.price}
+                  <span className="text-sm font-normal text-muted-foreground"> / oyiga</span>
+                </p>
+
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-900 dark:text-amber-100 space-y-1">
+                  <div className="flex items-center gap-1.5 font-semibold text-amber-700 dark:text-amber-300">
+                    <CreditCard className="size-4 shrink-0" />
+                    To‘lov tizimi integratsiyasi jarayonda
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    To‘lov tizimlari (Click / Payme / Uzum) integratsiyasi tez orada ishga tushadi.
+                    Xavfsizlik talablariga muvofiq, pullik tariflar faqat haqiqiy to‘lov
+                    tasdiqlangach yoqiladi va to‘lovsiz avtomatik faollashtirilmaydi.
+                  </p>
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0">
                 <Button variant="ghost" onClick={() => setSelected(null)}>
                   Bekor qilish
                 </Button>
-                <Button disabled={pending} onClick={() => selected && void applyPlan(selected.id)}>
-                  {pending ? "Kuting…" : "Davom etish"}
+                <Button
+                  disabled={pending}
+                  onClick={() => {
+                    if (selected && (selected.id === "premium" || selected.id === "pro")) {
+                      void handleSubmitUpgradeRequest(selected.id);
+                    }
+                  }}
+                >
+                  {pending ? "Yuborilmoqda…" : "Qiziqish bildirish / So‘rov qoldirish"}
                 </Button>
               </DialogFooter>
             </>
           ) : (
             <>
               <DialogHeader>
-                <DialogTitle>Tez orada</DialogTitle>
-                <DialogDescription>
-                  To‘lovlar tez orada ishga tushadi. Qiziqishingiz qayd etildi va tarifingiz ushbu
-                  demo uchun faollashtirildi.
+                <DialogTitle className="flex items-center gap-2">
+                  <Sparkles className="size-5 text-accent" />
+                  So‘rovingiz qabul qilindi
+                </DialogTitle>
+                <DialogDescription className="leading-relaxed text-sm pt-2">
+                  To‘lov tizimlari (Click / Payme) integratsiya qilinmoqda. Qiziqishingiz
+                  muvaffaqiyatli qayd etildi. Rasmiy to‘lovlar ishga tushgach sizga darhol xabar
+                  beramiz. Hozircha Bepul tarifingiz (haftasiga 3 ta dars) faol holatda qoladi.
                 </DialogDescription>
               </DialogHeader>
-              <DialogFooter>
-                <Button onClick={() => setSelected(null)}>Yopish</Button>
+              <DialogFooter className="mt-4">
+                <Button onClick={() => setSelected(null)}>Tushunarli</Button>
               </DialogFooter>
             </>
           )}

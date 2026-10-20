@@ -109,6 +109,7 @@ type Draft = {
 function CalendarPage() {
   const { user } = useRequireAuth();
   const { loading } = useAuth();
+  const userId = user?.uid ?? "";
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [draft, setDraft] = useState<Draft | null>(null);
   const [selected, setSelected] = useState<CalendarSlot | null>(null);
@@ -133,8 +134,8 @@ function CalendarPage() {
     enabled: !!user,
   });
   const pointsQuery = useQuery({
-    queryKey: ["weekly-points", user?.id],
-    queryFn: () => fetchWeeklyPoints(user!.id),
+    queryKey: ["weekly-points", userId],
+    queryFn: () => fetchWeeklyPoints(userId),
     enabled: !!user,
   });
   const isFree = (pointsQuery.data?.plan ?? "free") === "free";
@@ -145,7 +146,7 @@ function CalendarPage() {
     return p ? fullName(p) : "PeerSwap a’zosi";
   };
 
-  const myProfile = useMemo(() => profiles.find((p) => p.id === user?.id), [profiles, user?.id]);
+  const myProfile = useMemo(() => profiles.find((p) => p.id === userId), [profiles, userId]);
   const myName = myProfile ? fullName(myProfile) : "Siz";
 
   if (loading || !user) return null;
@@ -214,7 +215,7 @@ function CalendarPage() {
         await updateSlot(draft.id, payload);
         toast.success("Slot vaqti va ma’lumotlari yangilandi.");
       } else {
-        await createSlot({ ...payload, owner_id: user!.id });
+        await createSlot({ ...payload, owner_id: userId });
         toast.success("Yangi slot jadvalga qo‘shildi.");
       }
       setDraft(null);
@@ -243,7 +244,7 @@ function CalendarPage() {
 
   const recommended: ProfileWithSkills[] = selected
     ? profiles
-        .filter((p) => p.id !== selected.owner_id && p.id !== user.id && p.is_active)
+        .filter((p) => p.id !== selected.owner_id && p.id !== userId && p.is_active)
         .filter((p) => {
           const skill = selected.skill.trim().toLowerCase();
           if (!skill) return false;
@@ -595,8 +596,8 @@ function CalendarPage() {
 
               <DialogFooter className="flex-col sm:flex-row flex-wrap gap-2 pt-2">
                 {(() => {
-                  const isOwner = selected.owner_id === user.id;
-                  const isMember = isOwner || selected.partner_id === user.id;
+                  const isOwner = selected.owner_id === userId;
+                  const isMember = isOwner || selected.partner_id === userId;
                   const hasPartner = !!selected.partner_id;
 
                   return (
@@ -721,11 +722,11 @@ function CalendarPage() {
           isOpen={!!chatSlot}
           onClose={() => setChatSlot(null)}
           sessionId={chatSlot.id}
-          userId={user.id}
+          userId={userId}
           userName={myName}
-          partnerId={chatSlot.owner_id === user.id ? chatSlot.partner_id! : chatSlot.owner_id}
+          partnerId={chatSlot.owner_id === userId ? chatSlot.partner_id! : chatSlot.owner_id}
           partnerName={nameOf(
-            chatSlot.owner_id === user.id ? chatSlot.partner_id : chatSlot.owner_id,
+            chatSlot.owner_id === userId ? chatSlot.partner_id : chatSlot.owner_id,
           )}
           skillName={chatSlot.skill}
           scheduledTime={timeRange(chatSlot)}
@@ -748,12 +749,12 @@ function CalendarPage() {
           isOpen={!!videoSlot}
           onClose={() => setVideoSlot(null)}
           sessionId={videoSlot.id}
-          userId={user.id}
+          userId={userId}
           userName={myName}
-          isOwner={videoSlot.owner_id === user.id}
-          partnerId={videoSlot.owner_id === user.id ? videoSlot.partner_id! : videoSlot.owner_id}
+          isOwner={videoSlot.owner_id === userId}
+          partnerId={videoSlot.owner_id === userId ? videoSlot.partner_id! : videoSlot.owner_id}
           partnerName={nameOf(
-            videoSlot.owner_id === user.id ? videoSlot.partner_id : videoSlot.owner_id,
+            videoSlot.owner_id === userId ? videoSlot.partner_id : videoSlot.owner_id,
           )}
           skillName={videoSlot.skill}
           onSessionEnded={() => {
@@ -771,10 +772,10 @@ function CalendarPage() {
           onClose={() => setReviewSlot(null)}
           sessionId={reviewSlot.id}
           isCalendarSlot={true}
-          userId={user.id}
-          isOwner={reviewSlot.owner_id === user.id}
+          userId={userId}
+          isOwner={reviewSlot.owner_id === userId}
           partnerName={nameOf(
-            reviewSlot.owner_id === user.id ? reviewSlot.partner_id : reviewSlot.owner_id,
+            reviewSlot.owner_id === userId ? reviewSlot.partner_id : reviewSlot.owner_id,
           )}
           skillName={reviewSlot.skill}
           onCompleted={() => {

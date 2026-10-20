@@ -10,8 +10,7 @@ import {
   slotColor,
   toTimeInput,
 } from "@/lib/calendar";
-import { fullName, type ProfileWithSkills } from "@/lib/peerswap";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchProfile, fullName, type ProfileWithSkills } from "@/lib/peerswap";
 
 export function DashboardAgenda({
   userId,
@@ -23,19 +22,13 @@ export function DashboardAgenda({
   const slotsQuery = useQuery({
     queryKey: ["agenda", userId],
     queryFn: () => fetchUpcomingSlots(userId),
+    enabled: !!userId,
   });
-  const balanceQuery = useQuery({
-    queryKey: ["peercoins", userId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("peercoin_transactions")
-        .select("amount, reason")
-        .eq("user_id", userId);
-      if (error) throw error;
-      return (data ?? [])
-        .filter((r) => (r.reason ?? "").startsWith("Calendar session"))
-        .reduce((sum, r) => sum + (r.amount ?? 0), 0);
-    },
+
+  const profileQuery = useQuery({
+    queryKey: ["my-profile-coins", userId],
+    queryFn: () => fetchProfile(userId),
+    enabled: !!userId,
   });
 
   const slots = slotsQuery.data ?? [];
@@ -52,16 +45,18 @@ export function DashboardAgenda({
     return p ? fullName(p) : "PeerSwap a’zosi";
   };
 
+  const balance = profileQuery.data?.peercoins ?? 10;
+
   return (
     <section className="mt-10">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Mini icon={CalendarDays} label="Bugungi mashg‘ulotlar" value={todays.length} />
         <Mini icon={DoorOpen} label="Ochiq slotlarim" value={open.length} />
         <Mini icon={Clock} label="Yaqinlashayotgan mashg‘ulotlar" value={upcoming.length} />
-        <Mini icon={Coins} label="Kalendar PeerPoint balansi" value={balanceQuery.data ?? 0} />
+        <Mini icon={Coins} label="PeerPoint balansi" value={balance} />
       </div>
 
-      <div className="surface-card mt-4 p-5">
+      <div className="surface-card mt-4 p-5 rounded-xl border border-border">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold tracking-tight">Kun tartibingiz</h2>
@@ -88,10 +83,12 @@ export function DashboardAgenda({
               const other = s.owner_id === userId ? s.partner_id : s.owner_id;
               const st = new Date(s.starts_at);
               return (
-                <li key={s.id} className="flex gap-4">
+                <li key={s.id} className="flex gap-4 items-center">
                   <div className="w-14 shrink-0 text-right text-sm">
                     <p className="font-semibold">{toTimeInput(st)}</p>
-                    <p className="text-muted-foreground">{toTimeInput(new Date(s.ends_at))}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {toTimeInput(new Date(s.ends_at))}
+                    </p>
                   </div>
                   <div
                     className={
@@ -100,26 +97,17 @@ export function DashboardAgenda({
                     }
                   >
                     <div>
-                      <p className="text-sm font-semibold">
-                        {s.kind === "personal" ? s.skill : `${KIND_LABEL[s.kind]}: ${s.skill}`}
+                      <p className="font-medium text-sm">
+                        {s.skill} · <span className="opacity-80">{KIND_LABEL[s.kind]}</span>
                       </p>
                       <p className="text-xs opacity-80">
-                        {!isSameDay(st, today) ? `${formatDayLabel(st)} · ` : ""}
-                        {other
-                          ? `${nameOf(other)} bilan`
-                          : s.kind === "personal"
-                            ? "Shaxsiy"
-                            : "Ochiq slot"}
+                        {s.partner_id
+                          ? `Hamkor: ${nameOf(other)}`
+                          : s.is_online
+                            ? "Onlayn"
+                            : "Oflayn"}
                       </p>
                     </div>
-                    {other ? (
-                      <Link
-                        to="/calendar"
-                        className="rounded bg-background/80 hover:bg-background px-2.5 py-1 text-xs font-medium text-foreground transition-colors shrink-0 flex items-center gap-1 shadow-sm"
-                      >
-                        Suhbat & Video →
-                      </Link>
-                    ) : null}
                   </div>
                 </li>
               );
@@ -141,7 +129,7 @@ function Mini({
   value: number;
 }) {
   return (
-    <div className="surface-card p-4">
+    <div className="surface-card p-4 rounded-xl border border-border">
       <Icon className="size-4 text-accent" />
       <p className="mt-2 text-2xl font-bold">{value}</p>
       <p className="text-xs text-muted-foreground">{label}</p>

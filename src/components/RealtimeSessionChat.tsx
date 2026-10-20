@@ -15,6 +15,7 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,9 +23,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   createSessionChannel,
-  getLocalChatHistory,
-  saveLocalChatMessage,
-  updateLocalChatMessage,
+  subscribeSessionMessages,
+  sendSessionChatMessage,
+  updateSessionChatMessage,
   type ChatMessage,
   type LogisticsProposal,
 } from "@/lib/session-room";
@@ -76,6 +77,9 @@ export function RealtimeSessionChat({
   showHeader = true,
 }: RealtimeSessionChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
   const [inputText, setInputText] = useState("");
   const [partnerTyping, setPartnerTyping] = useState(false);
   const [showLogisticsDrawer, setShowLogisticsDrawer] = useState(false);
@@ -92,37 +96,33 @@ export function RealtimeSessionChat({
   const channelRef = useRef<ReturnType<typeof createSessionChannel> | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Initialize and load chat
+  // Initialize and load chat via real-time Firestore onSnapshot
   useEffect(() => {
-    const history = getLocalChatHistory(sessionId);
-    setMessages(history);
+    setLoading(true);
+    setError(null);
 
-    // Initial greeting if empty
-    if (history.length === 0) {
-      const welcomeMsg: ChatMessage = {
-        id: `sys_logistics_${Date.now()}`,
-        sessionId,
-        senderId: "system",
-        senderName: "PeerSwap",
-        text: `Salom! "${skillName}" almashinuv darsi uchun logistika chati ochildi. Bu yerda qulay vaqt, platforma va dars rejasini kelishib olishingiz mumkin.`,
-        createdAt: new Date().toISOString(),
-        type: "system",
-      };
-      saveLocalChatMessage(welcomeMsg);
-      setMessages([welcomeMsg]);
-    }
+    // 1. Subscribe to persistent messages in Firestore
+    const unsubscribeMessages = subscribeSessionMessages(
+      sessionId,
+      (firestoreMsgs) => {
+        setMessages(firestoreMsgs);
+        setLoading(false);
+      },
+      (err) => {
+        const isForbidden =
+          err.message.includes("permission-denied") ||
+          err.message.includes("Missing or insufficient permissions");
+        setError(
+          isForbidden
+            ? "Ruxsat cheklangan: siz ushbu dars ishtirokchisi emassiz."
+            : "Xabarlarni yuklashda xatolik yuz berdi. Qayta urinib ko‘ring.",
+        );
+        setLoading(false);
+      },
+    );
 
-    // Connect to Supabase Realtime Channel
+    // 2. Ephemeral channel for typing indicators
     const channel = createSessionChannel(sessionId, {
-      onMessage: (newMsg) => {
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === newMsg.id)) return prev;
-          return [...prev, newMsg];
-        });
-      },
-      onMessageUpdated: (updatedMsg) => {
-        setMessages((prev) => prev.map((m) => (m.id === updatedMsg.id ? updatedMsg : m)));
-      },
       onTyping: (payload) => {
         if (payload.userId !== userId) {
           setPartnerTyping(payload.isTyping);
@@ -133,9 +133,10 @@ export function RealtimeSessionChat({
     channelRef.current = channel;
 
     return () => {
+      unsubscribeMessages();
       channel.unsubscribe();
     };
-  }, [sessionId, userId, skillName]);
+  }, [sessionId, userId]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -164,38 +165,40 @@ export function RealtimeSessionChat({
     }
   };
 
-  // Send simple message
+  // Send simple message to Firestore
   const handleSendMessage = async (textToSend?: string) => {
     const body = (textToSend ?? inputText).trim();
-    if (!body) return;
+    if (!body || sending) return;
 
-    const newMsg: ChatMessage = {
-      id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      sessionId,
-      senderId: userId,
-      senderName: userName,
-      text: body,
-      createdAt: new Date().toISOString(),
-      type: "message",
-    };
-
-    setMessages((prev) => [...prev, newMsg]);
+    setSending(true);
     setInputText("");
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     channelRef.current?.sendTyping({ userId, userName, isTyping: false });
 
     try {
-      if (channelRef.current) {
-        await channelRef.current.sendMessage(newMsg);
+      await sendSessionChatMessage(sessionId, {
+        sessionId,
+        senderId: userId,
+        senderName: userName,
+        text: body,
+        type: "message",
+      });
+    } catch (err: unknown) {
+      // Restore input text so user can retry safely
+      if (!textToSend) {
+        setInputText(body);
       }
-    } catch (err) {
-      console.warn("Message sent locally; real-time broadcast fallback", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Xabarni yuborib bo‘lmadi: ${msg}`);
+    } finally {
+      setSending(false);
     }
   };
 
-  // Send structured logistics proposal
+  // Send structured logistics proposal to Firestore
   const handleSendLogisticsProposal = async () => {
+    if (sending) return;
     const dateStr = proposalDate.trim() || new Date().toISOString().split("T")[0];
     const timeStr = proposalTime.trim() || "19:00";
     const platformLabel = PLATFORM_LABELS[proposalPlatform] || proposalPlatform;
@@ -208,94 +211,74 @@ export function RealtimeSessionChat({
       status: "pending",
     };
 
-    const proposalMsg: ChatMessage = {
-      id: `prop_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      sessionId,
-      senderId: userId,
-      senderName: userName,
-      text: `📅 Dars vaqti va joyi taklifi:\n• Sana: ${dateStr}\n• Soat: ${timeStr}\n• Platforma: ${platformLabel}${
-        proposalAgenda ? `\n• Reja: ${proposalAgenda}` : ""
-      }`,
-      createdAt: new Date().toISOString(),
-      type: "logistics_proposal",
-      logistics: proposal,
-    };
-
-    setMessages((prev) => [...prev, proposalMsg]);
-    setShowLogisticsDrawer(false);
-    setProposalAgenda("");
-    toast.success("Dars vaqti taklifi yuborildi!");
-
+    setSending(true);
     try {
-      if (channelRef.current) {
-        await channelRef.current.sendMessage(proposalMsg);
-      }
-    } catch (err) {
-      console.warn("Proposal saved locally; real-time broadcast fallback", err);
+      await sendSessionChatMessage(sessionId, {
+        sessionId,
+        senderId: userId,
+        senderName: userName,
+        text: `📅 Dars vaqti va joyi taklifi:\n• Sana: ${dateStr}\n• Soat: ${timeStr}\n• Platforma: ${platformLabel}${
+          proposalAgenda ? `\n• Reja: ${proposalAgenda}` : ""
+        }`,
+        type: "logistics_proposal",
+        logistics: proposal,
+      });
+
+      setShowLogisticsDrawer(false);
+      setProposalAgenda("");
+      toast.success("Dars vaqti taklifi yuborildi!");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Taklifni yuborib bo‘lmadi: ${msg}`);
+    } finally {
+      setSending(false);
     }
   };
 
-  // Respond to a proposal (Accept / Decline)
+  // Respond to a proposal in Firestore (Accept / Decline)
   const handleRespondToProposal = async (msg: ChatMessage, accept: boolean) => {
-    if (!msg.logistics) return;
+    if (!msg.logistics || sending) return;
 
     const newStatus: "accepted" | "declined" = accept ? "accepted" : "declined";
-    const updatedMsg: ChatMessage = {
-      ...msg,
-      logistics: {
-        ...msg.logistics,
-        status: newStatus,
-      },
-    };
-
-    // Update in state and local storage
-    setMessages((prev) => prev.map((m) => (m.id === msg.id ? updatedMsg : m)));
-    updateLocalChatMessage(sessionId, msg.id, updatedMsg);
-
-    // Send broadcast update
-    try {
-      if (channelRef.current) {
-        await channelRef.current.sendUpdatedMessage(updatedMsg);
-      }
-    } catch (err) {
-      console.warn("Could not broadcast update", err);
-    }
-
-    // Add confirmation message
-    const confirmationText = accept
-      ? `✅ ${userName} dars vaqtini tasdiqladi: ${msg.logistics.proposedDate} soat ${msg.logistics.proposedTime} (${PLATFORM_LABELS[msg.logistics.platform || "peerswap"]})`
-      : `❌ ${userName} bu vaqtni qulay emas deb topdi. Iltimos, boshqa vaqtni taklif qiling.`;
-
-    const confirmationMsg: ChatMessage = {
-      id: `sys_resp_${Date.now()}`,
-      sessionId,
-      senderId: "system",
-      senderName: "PeerSwap",
-      text: confirmationText,
-      createdAt: new Date().toISOString(),
-      type: accept ? "logistics_accepted" : "system",
-    };
-
-    setMessages((prev) => [...prev, confirmationMsg]);
-    saveLocalChatMessage(confirmationMsg);
+    setSending(true);
 
     try {
-      if (channelRef.current) {
-        await channelRef.current.sendMessage(confirmationMsg);
-      }
-    } catch {
-      // Fallback
-    }
-
-    if (accept) {
-      toast.success("Dars vaqti muvaffaqiyatli kelishildi!");
-      onLogisticsConfirmed?.({
-        date: msg.logistics.proposedDate || "",
-        time: msg.logistics.proposedTime || "",
-        platform: msg.logistics.platform || "peerswap",
+      // 1. Update proposal status in Firestore document
+      await updateSessionChatMessage(sessionId, msg.id, {
+        logistics: {
+          ...msg.logistics,
+          status: newStatus,
+        },
       });
-    } else {
-      toast.info("Taklif rad etildi, yangi vaqt taklif qilishingiz mumkin.");
+
+      // 2. Add confirmation notice message in Firestore
+      const confirmationText = accept
+        ? `✅ ${userName} dars vaqtini tasdiqladi: ${msg.logistics.proposedDate} soat ${msg.logistics.proposedTime} (${PLATFORM_LABELS[msg.logistics.platform || "peerswap"]})`
+        : `❌ ${userName} bu vaqtni qulay emas deb topdi. Iltimos, boshqa vaqtni taklif qiling.`;
+
+      await sendSessionChatMessage(sessionId, {
+        sessionId,
+        senderId: userId,
+        senderName: "PeerSwap",
+        text: confirmationText,
+        type: accept ? "logistics_accepted" : "system",
+      });
+
+      if (accept) {
+        toast.success("Dars vaqti muvaffaqiyatli kelishildi!");
+        onLogisticsConfirmed?.({
+          date: msg.logistics.proposedDate || "",
+          time: msg.logistics.proposedTime || "",
+          platform: msg.logistics.platform || "peerswap",
+        });
+      } else {
+        toast.info("Taklif rad etildi, yangi vaqt taklif qilishingiz mumkin.");
+      }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      toast.error(`Javobni saqlab bo‘lmadi: ${errMsg}`);
+    } finally {
+      setSending(false);
     }
   };
 
@@ -505,167 +488,201 @@ export function RealtimeSessionChat({
 
       {/* Messages Feed */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/20">
-        {messages.map((m) => {
-          const isMe = m.senderId === userId;
-          const isSys = m.senderId === "system" || m.type === "system";
-          const isProposal = m.type === "logistics_proposal" && m.logistics;
-          const isAcceptedNotice = m.type === "logistics_accepted";
+        {/* Loading State */}
+        {loading && (
+          <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-2 text-muted-foreground">
+            <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <p className="text-xs">Xabarlar yuklanmoqda…</p>
+          </div>
+        )}
 
-          if (isSys || isAcceptedNotice) {
-            return (
-              <div key={m.id} className="mx-auto max-w-lg text-center py-1">
-                <div
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs border ${
-                    isAcceptedNotice
-                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-medium"
-                      : "bg-secondary border-border text-muted-foreground"
-                  }`}
-                >
-                  {isAcceptedNotice ? (
-                    <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
-                  ) : (
-                    <HelpCircle className="size-3.5 shrink-0" />
-                  )}
-                  <span>{m.text}</span>
+        {/* Error State */}
+        {error && !loading && (
+          <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-2.5 p-4 text-center">
+            <div className="rounded-full bg-destructive/10 p-2.5 text-destructive">
+              <AlertCircle className="size-5" />
+            </div>
+            <p className="text-xs text-destructive max-w-sm font-medium">{error}</p>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && !error && messages.length === 0 && (
+          <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground">
+            <div className="rounded-full bg-secondary p-3 text-muted-foreground">
+              <MessageSquare className="size-6" />
+            </div>
+            <p className="text-sm font-medium text-foreground">Hozircha xabarlar yo‘q</p>
+            <p className="text-xs max-w-xs leading-relaxed">
+              {partnerName} bilan dars vaqti, joyi va rejalarini kelishish uchun birinchi xabarni
+              yuboring.
+            </p>
+          </div>
+        )}
+
+        {!loading &&
+          !error &&
+          messages.map((m) => {
+            const isMe = m.senderId === userId;
+            const isSys = m.senderId === "system" || m.type === "system";
+            const isProposal = m.type === "logistics_proposal" && m.logistics;
+            const isAcceptedNotice = m.type === "logistics_accepted";
+
+            if (isSys || isAcceptedNotice) {
+              return (
+                <div key={m.id} className="mx-auto max-w-lg text-center py-1">
+                  <div
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs border ${
+                      isAcceptedNotice
+                        ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-medium"
+                        : "bg-secondary border-border text-muted-foreground"
+                    }`}
+                  >
+                    {isAcceptedNotice ? (
+                      <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
+                    ) : (
+                      <HelpCircle className="size-3.5 shrink-0" />
+                    )}
+                    <span>{m.text}</span>
+                  </div>
                 </div>
-              </div>
-            );
-          }
+              );
+            }
 
-          // Structured Logistics Proposal Card
-          if (isProposal && m.logistics) {
-            const prop = m.logistics;
-            const isPending = prop.status === "pending";
-            const isAccepted = prop.status === "accepted";
-            const isDeclined = prop.status === "declined";
+            // Structured Logistics Proposal Card
+            if (isProposal && m.logistics) {
+              const prop = m.logistics;
+              const isPending = prop.status === "pending";
+              const isAccepted = prop.status === "accepted";
+              const isDeclined = prop.status === "declined";
 
-            return (
-              <div
-                key={m.id}
-                className={`flex flex-col ${isMe ? "items-end" : "items-start"} my-1`}
-              >
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1 px-1">
-                  <span>{isMe ? "Siz taklif qildingiz" : `${m.senderName} taklif qildi`}</span>
-                  <span>·</span>
-                  <span>{formatMsgTime(m.createdAt)}</span>
-                </div>
-
+              return (
                 <div
-                  className={`w-full max-w-md rounded-xl p-3.5 border transition-all ${
-                    isAccepted
-                      ? "bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-500/40"
-                      : isDeclined
-                        ? "bg-rose-50/60 dark:bg-rose-950/20 border-rose-500/30 opacity-80"
-                        : "bg-card border-border shadow-sm"
-                  }`}
+                  key={m.id}
+                  className={`flex flex-col ${isMe ? "items-end" : "items-start"} my-1`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
-                      <Calendar className="size-3.5 text-primary" />
-                      Dars vaqti taklifi
-                    </span>
-                    <span
-                      className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                        isAccepted
-                          ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                          : isDeclined
-                            ? "bg-rose-500/20 text-rose-600 dark:text-rose-400"
-                            : "bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse"
-                      }`}
-                    >
-                      {isAccepted
-                        ? "✅ Tasdiqlangan"
-                        : isDeclined
-                          ? "❌ Rad etilgan"
-                          : "⏳ Javob kutilmoqda"}
-                    </span>
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1 px-1">
+                    <span>{isMe ? "Siz taklif qildingiz" : `${m.senderName} taklif qildi`}</span>
+                    <span>·</span>
+                    <span>{formatMsgTime(m.createdAt)}</span>
                   </div>
 
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex items-center gap-2 text-foreground font-medium">
-                      <Clock className="size-3.5 text-muted-foreground shrink-0" />
-                      <span>
-                        {prop.proposedDate} soat {prop.proposedTime}
+                  <div
+                    className={`w-full max-w-md rounded-xl p-3.5 border transition-all ${
+                      isAccepted
+                        ? "bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-500/40"
+                        : isDeclined
+                          ? "bg-rose-50/60 dark:bg-rose-950/20 border-rose-500/30 opacity-80"
+                          : "bg-card border-border shadow-sm"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                        <Calendar className="size-3.5 text-primary" />
+                        Dars vaqti taklifi
+                      </span>
+                      <span
+                        className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                          isAccepted
+                            ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                            : isDeclined
+                              ? "bg-rose-500/20 text-rose-600 dark:text-rose-400"
+                              : "bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse"
+                        }`}
+                      >
+                        {isAccepted
+                          ? "✅ Tasdiqlangan"
+                          : isDeclined
+                            ? "❌ Rad etilgan"
+                            : "⏳ Javob kutilmoqda"}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <MapPin className="size-3.5 shrink-0" />
-                      <span>{PLATFORM_LABELS[prop.platform || "peerswap"]}</span>
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex items-center gap-2 text-foreground font-medium">
+                        <Clock className="size-3.5 text-muted-foreground shrink-0" />
+                        <span>
+                          {prop.proposedDate} soat {prop.proposedTime}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <MapPin className="size-3.5 shrink-0" />
+                        <span>{PLATFORM_LABELS[prop.platform || "peerswap"]}</span>
+                      </div>
+
+                      {prop.agenda && (
+                        <div className="flex items-start gap-2 text-muted-foreground pt-1 border-t border-border/50 text-[11px]">
+                          <FileText className="size-3.5 shrink-0 mt-0.5" />
+                          <span>Reja: {prop.agenda}</span>
+                        </div>
+                      )}
                     </div>
 
-                    {prop.agenda && (
-                      <div className="flex items-start gap-2 text-muted-foreground pt-1 border-t border-border/50 text-[11px]">
-                        <FileText className="size-3.5 shrink-0 mt-0.5" />
-                        <span>Reja: {prop.agenda}</span>
+                    {/* Actions for recipient if pending */}
+                    {!isMe && isPending && (
+                      <div className="mt-3 pt-2.5 border-t border-border flex items-center gap-2 justify-end">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRespondToProposal(m, false)}
+                          className="text-xs h-7 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                        >
+                          <XCircle className="size-3.5 mr-1" />
+                          Rad etish
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleRespondToProposal(m, true)}
+                          className="text-xs h-7 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                        >
+                          <CheckCircle2 className="size-3.5 mr-1" />
+                          Qabul qilish
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Direct button to launch video call if accepted */}
+                    {isAccepted && onOpenVideoCall && (
+                      <div className="mt-2.5 pt-2 border-t border-emerald-500/20 flex items-center justify-between">
+                        <span className="text-[11px] text-emerald-700 dark:text-emerald-300">
+                          Vaqt belgilandi!
+                        </span>
+                        <Button
+                          size="sm"
+                          onClick={onOpenVideoCall}
+                          className="text-xs h-7 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                        >
+                          <Video className="size-3" />
+                          Xonaga kirish
+                        </Button>
                       </div>
                     )}
                   </div>
+                </div>
+              );
+            }
 
-                  {/* Actions for recipient if pending */}
-                  {!isMe && isPending && (
-                    <div className="mt-3 pt-2.5 border-t border-border flex items-center gap-2 justify-end">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleRespondToProposal(m, false)}
-                        className="text-xs h-7 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                      >
-                        <XCircle className="size-3.5 mr-1" />
-                        Rad etish
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleRespondToProposal(m, true)}
-                        className="text-xs h-7 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-                      >
-                        <CheckCircle2 className="size-3.5 mr-1" />
-                        Qabul qilish
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Direct button to launch video call if accepted */}
-                  {isAccepted && onOpenVideoCall && (
-                    <div className="mt-2.5 pt-2 border-t border-emerald-500/20 flex items-center justify-between">
-                      <span className="text-[11px] text-emerald-700 dark:text-emerald-300">
-                        Vaqt belgilandi!
-                      </span>
-                      <Button
-                        size="sm"
-                        onClick={onOpenVideoCall}
-                        className="text-xs h-7 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-                      >
-                        <Video className="size-3" />
-                        Xonaga kirish
-                      </Button>
-                    </div>
-                  )}
+            // Regular message bubble
+            return (
+              <div key={m.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1 px-1">
+                  <span>{isMe ? "Siz" : m.senderName}</span>
+                  <span>·</span>
+                  <span>{formatMsgTime(m.createdAt)}</span>
+                </div>
+                <div
+                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
+                    isMe
+                      ? "bg-primary text-primary-foreground rounded-tr-none"
+                      : "bg-card text-foreground rounded-tl-none border border-border shadow-xs"
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap break-words">{m.text}</p>
                 </div>
               </div>
             );
-          }
-
-          // Regular message bubble
-          return (
-            <div key={m.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1 px-1">
-                <span>{isMe ? "Siz" : m.senderName}</span>
-                <span>·</span>
-                <span>{formatMsgTime(m.createdAt)}</span>
-              </div>
-              <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
-                  isMe
-                    ? "bg-primary text-primary-foreground rounded-tr-none"
-                    : "bg-card text-foreground rounded-tl-none border border-border shadow-xs"
-                }`}
-              >
-                <p className="whitespace-pre-wrap break-words">{m.text}</p>
-              </div>
-            </div>
-          );
-        })}
+          })}
 
         {/* Real-time typing indicator */}
         {partnerTyping && (
@@ -704,6 +721,7 @@ export function RealtimeSessionChat({
           size="icon"
           onClick={() => setShowLogisticsDrawer(!showLogisticsDrawer)}
           title="Dars vaqtini taklif qilish"
+          disabled={loading || !!error || sending}
           className="shrink-0 h-9 w-9 text-muted-foreground hover:text-primary"
         >
           <Calendar className="size-4" />
@@ -712,20 +730,25 @@ export function RealtimeSessionChat({
         <Input
           value={inputText}
           onChange={(e) => handleInputChange(e.target.value)}
+          disabled={loading || !!error || sending}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               handleSendMessage();
             }
           }}
-          placeholder="Xabar yozing (masalan, qulay vaqtingizni ayting)…"
+          placeholder={
+            error
+              ? "Xatolik tufayli xabar yuborib bo‘lmaydi"
+              : "Xabar yozing (masalan, qulay vaqtingizni ayting)…"
+          }
           className="flex-1 h-9 text-sm"
         />
 
         <Button
           onClick={() => handleSendMessage()}
           size="icon"
-          disabled={!inputText.trim()}
+          disabled={!inputText.trim() || sending || loading || !!error}
           className="shrink-0 h-9 w-9"
           title="Yuborish"
         >

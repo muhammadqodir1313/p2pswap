@@ -1,0 +1,132 @@
+{
+  "entities": {
+    "Profile": {
+      "title": "Profile",
+      "description": "Foydalanuvchining ochiq profili va ko‘nikmalari",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "first_name": { "type": "string", "maxLength": 100 },
+        "last_name": { "type": "string", "maxLength": 100 },
+        "bio": { "type": "string", "maxLength": 500 },
+        "plan": { "type": "string", "enum": ["free", "premium", "pro"] },
+        "peercoins": { "type": "number" },
+        "weekly_lessons_used": { "type": "number" },
+        "is_active": { "type": "boolean" },
+        "is_demo": { "type": "boolean" },
+        "created_at": { "type": "string", "maxLength": 50 },
+        "updated_at": { "type": "string", "maxLength": 50 },
+        "teach": { "type": "array" },
+        "learn": { "type": "array" }
+      },
+      "required": ["id", "first_name", "last_name", "is_active", "plan"]
+    },
+    "SwapSession": {
+      "title": "SwapSession",
+      "description": "Ikki foydalanuvchi o‘rtasidagi ko‘nikma almashish sessiyasi",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "requester_id": { "type": "string", "maxLength": 128 },
+        "partner_id": { "type": "string", "maxLength": 128 },
+        "requester_teaches": { "type": "string", "maxLength": 100 },
+        "partner_teaches": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["pending", "accepted", "completed"] },
+        "created_at": { "type": "string", "maxLength": 50 },
+        "completed_at": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "requester_id", "partner_id", "status", "created_at"]
+    },
+    "CalendarSlot": {
+      "title": "CalendarSlot",
+      "description": "Mashg‘ulot yoki uchrashuv jadval vaqti",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "owner_id": { "type": "string", "maxLength": 128 },
+        "partner_id": { "type": "string", "maxLength": 128 },
+        "kind": { "type": "string", "enum": ["teach", "learn", "personal"] },
+        "skill": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 500 },
+        "is_online": { "type": "boolean" },
+        "starts_at": { "type": "string", "maxLength": 50 },
+        "ends_at": { "type": "string", "maxLength": 50 },
+        "status": {
+          "type": "string",
+          "enum": ["open", "requested", "confirmed", "in_progress", "completed", "cancelled"]
+        },
+        "peerpoint_cost": { "type": "number" },
+        "created_at": { "type": "string", "maxLength": 50 },
+        "owner_done": { "type": "boolean" },
+        "partner_done": { "type": "boolean" }
+      },
+      "required": ["id", "owner_id", "kind", "skill", "starts_at", "ends_at", "status"]
+    },
+    "Feedback": {
+      "title": "Feedback",
+      "description": "Mashg‘ulot yakunidagi baho va izoh",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "session_id": { "type": "string", "maxLength": 128 },
+        "user_id": { "type": "string", "maxLength": 128 },
+        "rating": { "type": "number" },
+        "comment": { "type": "string", "maxLength": 1000 },
+        "created_at": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "session_id", "user_id", "rating", "created_at"]
+    },
+    "AiRecommendation": {
+      "title": "AiRecommendation",
+      "description": "AI tavsiyalar tarixi",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "user_id": { "type": "string", "maxLength": 128 },
+        "need": { "type": "string", "maxLength": 500 },
+        "quality": { "type": "string", "maxLength": 50 },
+        "note": { "type": "string", "maxLength": 1000 },
+        "recommendations": { "type": "array" },
+        "created_at": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "user_id", "need", "created_at"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Administrator ruxsatiga ega foydalanuvchi yozuvi",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 200 },
+        "role": { "type": "string", "maxLength": 50 },
+        "created_at": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/profiles/{userId}": {
+      "schema": "Profile",
+      "description": "Foydalanuvchilarning umumiy katalogi"
+    },
+    "/swap_sessions/{sessionId}": {
+      "schema": "SwapSession",
+      "description": "Almashinuv mashg‘ulotlari"
+    },
+    "/calendar_slots/{slotId}": {
+      "schema": "CalendarSlot",
+      "description": "Taqvim vaqt oraliqlari"
+    },
+    "/feedback/{feedbackId}": {
+      "schema": "Feedback",
+      "description": "Fikr va baholashlar"
+    },
+    "/ai_recommendations/{recId}": {
+      "schema": "AiRecommendation",
+      "description": "AI tavsiyalar qaydlari"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Adminlar ro‘yxati"
+    }
+  }
+}

@@ -1,3 +1,15 @@
+import {
+  collection,
+  doc,
+  setDoc,
+  updateDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  serverTimestamp,
+  Timestamp,
+} from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
 import { supabase } from "@/integrations/supabase/client";
 
 export type LogisticsProposal = {
@@ -35,6 +47,149 @@ export type SessionAttendance = {
   partnerAttended: boolean;
   updatedAt: string;
 };
+
+// --- Firestore Persistent Chat API (swap_sessions/{sessionId}/messages/{messageId}) ---
+
+function getSessionMessagesCollection(sessionId: string) {
+  if (sessionId.startsWith("demo-slot-") || sessionId.startsWith("slot_")) {
+    return collection(db, "calendar_slots", sessionId, "messages");
+  }
+  return collection(db, "swap_sessions", sessionId, "messages");
+}
+
+function getSessionMessageDoc(sessionId: string, messageId: string) {
+  if (sessionId.startsWith("demo-slot-") || sessionId.startsWith("slot_")) {
+    return doc(db, "calendar_slots", sessionId, "messages", messageId);
+  }
+  return doc(db, "swap_sessions", sessionId, "messages", messageId);
+}
+
+/**
+ * Real-time listener for session messages from Firestore.
+ * Subscribes via onSnapshot, ordered chronologically by createdAt.
+ * Handles unresolved server timestamps gracefully via { serverTimestamps: "estimate" }.
+ */
+export function subscribeSessionMessages(
+  sessionId: string,
+  onUpdate: (messages: ChatMessage[]) => void,
+  onError?: (error: Error) => void,
+): () => void {
+  const colRef = getSessionMessagesCollection(sessionId);
+  const q = query(colRef, orderBy("createdAt", "asc"));
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const msgs: ChatMessage[] = [];
+      const seenIds = new Set<string>();
+      snapshot.forEach((d) => {
+        if (seenIds.has(d.id)) return;
+        seenIds.add(d.id);
+        const data = d.data({ serverTimestamps: "estimate" });
+
+        let createdAtIso: string;
+        if (data.createdAt instanceof Timestamp) {
+          createdAtIso = data.createdAt.toDate().toISOString();
+        } else if (typeof data.createdAt === "string") {
+          createdAtIso = data.createdAt;
+        } else if (data.createdAt && typeof data.createdAt.toDate === "function") {
+          createdAtIso = data.createdAt.toDate().toISOString();
+        } else {
+          createdAtIso = new Date().toISOString();
+        }
+
+        msgs.push({
+          id: d.id,
+          sessionId: data.sessionId || sessionId,
+          senderId: data.senderId || "",
+          senderName: data.senderName || "PeerSwap a’zosi",
+          text: data.text || "",
+          createdAt: createdAtIso,
+          type: data.type || "message",
+          ...(data.logistics ? { logistics: data.logistics } : {}),
+        });
+      });
+      onUpdate(msgs);
+    },
+    (err) => {
+      console.error("[PeerSwap Chat] Firestore onSnapshot error:", err);
+      onError?.(err instanceof Error ? err : new Error(String(err)));
+    },
+  );
+}
+
+/**
+ * Send a message to Firestore with server timestamp.
+ * Enforces senderId matching current authenticated user and length limits.
+ */
+export async function sendSessionChatMessage(
+  sessionId: string,
+  message: {
+    sessionId: string;
+    senderId: string;
+    senderName: string;
+    text: string;
+    type?: "message" | "system" | "logistics_proposal" | "logistics_accepted";
+    logistics?: LogisticsProposal;
+  },
+): Promise<string> {
+  const currentUid = auth.currentUser?.uid;
+  if (!currentUid) {
+    throw new Error("Xabar yuborish uchun tizimga kirgan bo‘lishingiz lozim.");
+  }
+
+  const trimmedText = message.text.trim();
+  if (!trimmedText) {
+    throw new Error("Bo‘sh xabar yuborib bo‘lmaydi.");
+  }
+  if (trimmedText.length > 4000) {
+    throw new Error("Xabar matni juda uzun (maksimal 4000 ta belgi).");
+  }
+
+  const colRef = getSessionMessagesCollection(sessionId);
+  const docRef = doc(colRef);
+
+  const payload: Record<string, unknown> = {
+    id: docRef.id,
+    sessionId,
+    senderId: currentUid,
+    senderName: message.senderName || "PeerSwap a’zosi",
+    text: trimmedText,
+    createdAt: serverTimestamp(),
+    type: message.type || "message",
+  };
+
+  if (message.logistics) {
+    payload.logistics = message.logistics;
+  }
+
+  await setDoc(docRef, payload);
+  return docRef.id;
+}
+
+/**
+ * Update an existing message in Firestore (e.g. logistics proposal status).
+ */
+export async function updateSessionChatMessage(
+  sessionId: string,
+  messageId: string,
+  updates: {
+    logistics?: LogisticsProposal;
+  },
+): Promise<void> {
+  const currentUid = auth.currentUser?.uid;
+  if (!currentUid) {
+    throw new Error("Amalni bajarish uchun tizimga kirgan bo‘lishingiz lozim.");
+  }
+
+  const docRef = getSessionMessageDoc(sessionId, messageId);
+  const updatePayload: Record<string, unknown> = {};
+  if (updates.logistics) {
+    updatePayload.logistics = updates.logistics;
+  }
+
+  await updateDoc(docRef, updatePayload);
+}
 
 // --- LocalStorage & IndexedDB helpers for reliable media & chat storage ---
 const CHAT_STORAGE_KEY = "peerswap_chat_history_v1";
@@ -255,12 +410,10 @@ export function createSessionChannel(
   channel
     .on("broadcast", { event: "chat-message" }, ({ payload }) => {
       const msg = payload as ChatMessage;
-      saveLocalChatMessage(msg);
       callbacks.onMessage?.(msg);
     })
     .on("broadcast", { event: "chat-message-updated" }, ({ payload }) => {
       const msg = payload as ChatMessage;
-      updateLocalChatMessage(msg.sessionId, msg.id, msg);
       callbacks.onMessageUpdated?.(msg);
     })
     .on("broadcast", { event: "typing" }, ({ payload }) => {
@@ -276,7 +429,14 @@ export function createSessionChannel(
 
   return {
     sendMessage: async (msg: ChatMessage) => {
-      saveLocalChatMessage(msg);
+      await sendSessionChatMessage(sessionId, {
+        sessionId,
+        senderId: msg.senderId,
+        senderName: msg.senderName,
+        text: msg.text,
+        type: msg.type,
+        logistics: msg.logistics,
+      });
       await channel.send({
         type: "broadcast",
         event: "chat-message",
@@ -284,7 +444,11 @@ export function createSessionChannel(
       });
     },
     sendUpdatedMessage: async (msg: ChatMessage) => {
-      updateLocalChatMessage(msg.sessionId, msg.id, msg);
+      if (msg.logistics) {
+        await updateSessionChatMessage(sessionId, msg.id, {
+          logistics: msg.logistics,
+        });
+      }
       await channel.send({
         type: "broadcast",
         event: "chat-message-updated",

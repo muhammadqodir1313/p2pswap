@@ -45,6 +45,7 @@ export const Route = createFileRoute("/matches")({
 function MatchesPage() {
   const { user } = useRequireAuth();
   const { loading } = useAuth();
+  const userId = user?.uid ?? "";
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -57,23 +58,22 @@ function MatchesPage() {
     enabled: !!user,
   });
   const sessionsQuery = useQuery({
-    queryKey: ["sessions", user?.id],
-    queryFn: () => fetchMySessions(user!.id),
+    queryKey: ["sessions", userId],
+    queryFn: () => fetchMySessions(userId),
     enabled: !!user,
   });
   const pointsQuery = useQuery({
-    queryKey: ["weekly-points", user?.id],
-    queryFn: () => fetchWeeklyPoints(user!.id),
+    queryKey: ["weekly-points", userId],
+    queryFn: () => fetchWeeklyPoints(userId),
     enabled: !!user,
   });
 
   const profiles = useMemo(() => profilesQuery.data ?? [], [profilesQuery.data]);
-  const me = useMemo(() => profiles.find((p) => p.id === user?.id), [profiles, user?.id]);
+  const me = useMemo(() => profiles.find((p) => p.id === userId), [profiles, userId]);
   const sessions = useMemo(() => sessionsQuery.data ?? [], [sessionsQuery.data]);
   const requestedIds = useMemo(
-    () =>
-      new Set(sessions.map((s) => (s.requester_id === user?.id ? s.partner_id : s.requester_id))),
-    [sessions, user?.id],
+    () => new Set(sessions.map((s) => (s.requester_id === userId ? s.partner_id : s.requester_id))),
+    [sessions, userId],
   );
 
   const filteredMatches = useMemo(() => {
@@ -246,7 +246,7 @@ function MatchesPage() {
               key={m.profile.id}
               profile={m.profile}
               match={m.match}
-              meId={user.id}
+              meId={userId}
               alreadyRequested={requestedIds.has(m.profile.id)}
               pointsLeft={pointsQuery.data?.remaining ?? null}
               onRequested={() => {

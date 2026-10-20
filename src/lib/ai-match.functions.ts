@@ -1,12 +1,3 @@
-import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
-const RecommendInput = z.object({
-  need: z.string().min(3).max(600),
-  quality: z.enum(["fast", "balanced", "deep"]).default("balanced"),
-});
-
 export type RecommendQuality = "fast" | "balanced" | "deep";
 
 export type PartnerRecommendation = {
@@ -20,7 +11,7 @@ export type RecommendPartnersResult = {
   note: string;
 };
 
-type Candidate = {
+export type Candidate = {
   id: string;
   name: string;
   bio: string;
@@ -32,7 +23,7 @@ function normalizeText(text: string): string {
   return text.toLowerCase().trim();
 }
 
-function calculateMatch(
+export function calculateMatch(
   need: string,
   userTeach: string[],
   userLearn: string[],
@@ -107,75 +98,3 @@ function calculateMatch(
 
   return { score, reason: reasonText };
 }
-
-export const recommendPartners = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => RecommendInput.parse(input))
-  .handler(async ({ data, context }): Promise<RecommendPartnersResult> => {
-    const { supabase, userId } = context;
-
-    const { data: rows, error } = await supabase
-      .from("peer_directory")
-      .select("id, first_name, last_name, bio, is_active, teach, learn");
-    if (error) throw new Error(error.message);
-
-    const all = (rows ?? []) as Array<{
-      id: string | null;
-      first_name: string | null;
-      last_name: string | null;
-      bio: string | null;
-      is_active: boolean | null;
-      teach: string[] | null;
-      learn: string[] | null;
-    }>;
-
-    const me = all.find((p) => p.id === userId);
-    const candidates: Candidate[] = all
-      .filter((p) => p.id && p.id !== userId && p.is_active !== false)
-      .map((p) => ({
-        id: p.id as string,
-        name: `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || "PeerSwap a’zosi",
-        bio: p.bio ?? "",
-        teach: p.teach ?? [],
-        learn: p.learn ?? [],
-      }));
-
-    if (candidates.length === 0) {
-      return { recommendations: [], note: "Hozircha tavsiya qilish uchun faol hamkor yo‘q." };
-    }
-
-    const scored = candidates.map((cand) => {
-      const match = calculateMatch(data.need, me?.teach ?? [], me?.learn ?? [], cand);
-      return {
-        id: cand.id,
-        score: match.score,
-        reason: match.reason,
-      };
-    });
-
-    // Sort descending by score
-    scored.sort((a, b) => b.score - a.score);
-
-    const maxCount = data.quality === "fast" ? 3 : 5;
-    const recommendations: PartnerRecommendation[] = scored.slice(0, maxCount);
-
-    const note =
-      recommendations.length > 0
-        ? `"${data.need}" bo‘yicha eng mos ${recommendations.length} ta hamkor saralab olindi.`
-        : "Afsuski, kiritilgan talabga mos hamkor hozircha topilmadi.";
-
-    // Save recommendations history (RLS: owner and admin only)
-    try {
-      await supabase.from("ai_recommendations").insert({
-        user_id: userId,
-        need: data.need,
-        quality: data.quality,
-        note,
-        recommendations,
-      });
-    } catch (saveError) {
-      console.warn("ai_recommendations insert warning", saveError);
-    }
-
-    return { recommendations, note };
-  });

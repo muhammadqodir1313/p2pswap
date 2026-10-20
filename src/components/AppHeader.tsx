@@ -14,7 +14,7 @@ const links = [
 ] as const;
 
 export function AppHeader() {
-  const { signOut } = useAuth();
+  const { signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   return (
@@ -38,6 +38,15 @@ export function AppHeader() {
               {link.label}
             </Link>
           ))}
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className="rounded-md px-3 py-1.5 text-accent font-medium transition-colors hover:bg-secondary hover:text-foreground"
+              activeProps={{ className: "bg-secondary text-accent" }}
+            >
+              Admin
+            </Link>
+          )}
         </nav>
 
         <div className="flex items-center gap-2">

@@ -1,52 +1,167 @@
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const distDir = path.resolve("dist");
 const outputDir = path.resolve(".output");
 const outputPublicDir = path.resolve(".output/public");
+const serverDir = path.join(distDir, "server");
 
 // Clean and recreate dist directory to avoid stale assets from previous builds
 if (fs.existsSync(distDir)) {
   fs.rmSync(distDir, { recursive: true, force: true });
 }
 fs.mkdirSync(distDir, { recursive: true });
+fs.mkdirSync(serverDir, { recursive: true });
 
-// Copy everything from .output/public into dist/
+// Copy public directory and .output/public into dist/
+const staticPublicDir = path.resolve("public");
+if (fs.existsSync(staticPublicDir)) {
+  fs.cpSync(staticPublicDir, distDir, { recursive: true });
+}
 if (fs.existsSync(outputPublicDir)) {
   fs.cpSync(outputPublicDir, distDir, { recursive: true });
 }
 
-// Copy .output server bundle into dist/server
+// Copy .output server bundle into dist/server if available
 const outputServerDir = path.resolve(".output/server");
 if (fs.existsSync(outputServerDir)) {
-  fs.cpSync(outputServerDir, path.join(distDir, "server"), { recursive: true });
+  try {
+    fs.cpSync(outputServerDir, serverDir, { recursive: true });
+  } catch (err) {
+    console.warn("Could not copy .output/server:", err);
+  }
+}
 
-  // Generate server.js shim expected by TanStack Start preview plugin and SSR runners
-  const serverShimContent = `import server from "./index.mjs";
+// Copy full .output directory into dist/.output so both static and SSR runners find files
+if (fs.existsSync(outputDir)) {
+  try {
+    fs.cpSync(outputDir, path.join(distDir, ".output"), { recursive: true });
+  } catch (err) {
+    console.warn("Could not copy .output:", err);
+  }
+}
+
+// Generate resilient server.js shim expected by TanStack Start preview plugin and Cloud Run runners
+const serverShimContent = `import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const distDir = path.resolve(__dirname, "..");
+const indexHtmlPath = path.resolve(distDir, "index.html");
+
+const staticMimes = {
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".ico": "image/x-icon",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".txt": "text/plain; charset=utf-8",
+  ".sql": "text/plain; charset=utf-8",
+};
+
+let ssrModule = null;
+try {
+  ssrModule = (await import("./_ssr/ssr.mjs")).default;
+} catch (e1) {
+  try {
+    ssrModule = (await import("./index.mjs")).default;
+  } catch (e2) {
+    console.warn("[PeerSwap Server] Could not load SSR module:", e1, e2);
+  }
+}
 
 const env = {};
 const ctx = { waitUntil() {}, passThroughOnException() {}, props: {} };
 
 export default {
-  fetch(request) {
+  async fetch(request) {
     try {
-      Object.defineProperty(request, "ip", { value: undefined, writable: true, configurable: true });
-    } catch {
-      // ignore
+      const url = new URL(request.url);
+      const cleanPath = url.pathname.replace(/^\\/+/, "");
+
+      // Serve static assets directly if they exist in dist/
+      if (cleanPath && !cleanPath.endsWith("/")) {
+        const localFilePath = path.join(distDir, cleanPath);
+        if (fs.existsSync(localFilePath) && fs.statSync(localFilePath).isFile()) {
+          const ext = path.extname(localFilePath).toLowerCase();
+          const contentType = staticMimes[ext] || "application/octet-stream";
+          const fileBytes = fs.readFileSync(localFilePath);
+          return new Response(fileBytes, {
+            status: 200,
+            headers: {
+              "content-type": contentType,
+              "cache-control": ext === ".html" ? "no-cache" : "public, max-age=31536000, immutable",
+            },
+          });
+        }
+      }
+
+      // Handle server-side rendered routes via TanStack Start SSR
+      if (ssrModule && typeof ssrModule.fetch === "function") {
+        try {
+          Object.defineProperty(request, "ip", { value: undefined, writable: true, configurable: true });
+        } catch {
+          // ignore
+        }
+        const res = await ssrModule.fetch(request, env, ctx);
+        if (res && res.status < 500) {
+          return res;
+        }
+      }
+    } catch (err) {
+      console.warn("[PeerSwap Server] SSR request error, falling back to static HTML:", err);
     }
-    return server.fetch(request, env, ctx);
+
+    // SPA fallback: return pre-rendered index.html
+    try {
+      if (fs.existsSync(indexHtmlPath)) {
+        const html = fs.readFileSync(indexHtmlPath, "utf-8");
+        return new Response(html, {
+          status: 200,
+          headers: {
+            "content-type": "text/html; charset=utf-8",
+          },
+        });
+      }
+    } catch (readErr) {
+      console.error("[PeerSwap Server] Error reading index.html fallback:", readErr);
+    }
+
+    return new Response("PeerSwap OK", { status: 200, headers: { "content-type": "text/plain" } });
   },
 };
 `;
-  fs.writeFileSync(path.join(distDir, "server", "server.js"), serverShimContent, "utf-8");
+
+fs.writeFileSync(path.join(serverDir, "server.js"), serverShimContent, "utf-8");
+
+// Pre-render index.html using the generated SSR module so that static fallbacks and preview are never blank
+let renderedIndexHtml = "";
+try {
+  const ssrPath = path.join(serverDir, "_ssr", "ssr.mjs");
+  if (fs.existsSync(ssrPath)) {
+    const ssrMod = (await import(pathToFileURL(ssrPath).href)).default;
+    const res = await ssrMod.fetch(
+      new Request("http://localhost:3000/"),
+      {},
+      { waitUntil() {}, passThroughOnException() {}, props: {} },
+    );
+    if (res && res.status === 200) {
+      renderedIndexHtml = await res.text();
+      console.log(`Pre-rendered SSR index.html (${renderedIndexHtml.length} bytes)`);
+    }
+  }
+} catch (ssrErr) {
+  console.warn("Could not pre-render index.html from SSR:", ssrErr);
 }
 
-// Copy full .output directory into dist/.output so both static and SSR runners find files
-if (fs.existsSync(outputDir)) {
-  fs.cpSync(outputDir, path.join(distDir, ".output"), { recursive: true });
-}
-
-// Find CSS and JS assets in dist/assets
+// Fallback HTML if SSR pre-rendering is unavailable
 let cssFile = "";
 let jsFile = "";
 const assetsDir = path.join(distDir, "assets");
@@ -56,8 +171,7 @@ if (fs.existsSync(assetsDir)) {
   jsFile = files.find((f) => f.startsWith("index-") && f.endsWith(".js")) || "";
 }
 
-// Create dist/index.html
-const indexHtmlContent = `<!DOCTYPE html>
+const fallbackHtml = `<!DOCTYPE html>
 <html lang="uz">
   <head>
     <meta charset="utf-8" />
@@ -79,11 +193,10 @@ const indexHtmlContent = `<!DOCTYPE html>
 </html>
 `;
 
-fs.writeFileSync(path.join(distDir, "index.html"), indexHtmlContent, "utf-8");
+const finalIndexHtml = renderedIndexHtml || fallbackHtml;
+fs.writeFileSync(path.join(distDir, "index.html"), finalIndexHtml, "utf-8");
+fs.writeFileSync(path.join(distDir, "200.html"), finalIndexHtml, "utf-8");
+fs.writeFileSync(path.join(distDir, "404.html"), finalIndexHtml, "utf-8");
 
-// Also create 200.html and 404.html for SPA routers
-fs.writeFileSync(path.join(distDir, "200.html"), indexHtmlContent, "utf-8");
-fs.writeFileSync(path.join(distDir, "404.html"), indexHtmlContent, "utf-8");
-
-console.log("Successfully prepared dist/ build artifacts:");
+console.log("Successfully prepared dist/ build artifacts with full SSR rendering support:");
 console.log(fs.readdirSync(distDir));

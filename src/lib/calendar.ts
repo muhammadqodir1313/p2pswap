@@ -1,4 +1,14 @@
-import { supabase } from "@/integrations/supabase/client";
+import {
+  collection,
+  doc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+} from "firebase/firestore";
+import { db, auth, handleFirestoreError, OperationType } from "./firebase";
 
 export type SlotKind = "teach" | "learn" | "personal";
 export type SlotStatus =
@@ -46,27 +56,77 @@ export function slotColor(slot: CalendarSlot) {
 }
 
 export async function fetchSlots(fromISO: string, toISO: string): Promise<CalendarSlot[]> {
-  const { data, error } = await supabase
-    .from("calendar_slots")
-    .select("*")
-    .gte("starts_at", fromISO)
-    .lt("starts_at", toISO)
-    .order("starts_at", { ascending: true });
-  if (error) throw error;
-  return (data ?? []) as CalendarSlot[];
+  const colPath = "calendar_slots";
+  try {
+    const snap = await getDocs(collection(db, colPath));
+    const list: CalendarSlot[] = [];
+    snap.forEach((d) => {
+      const data = d.data();
+      const startsAt = data.starts_at || "";
+      if (startsAt >= fromISO && startsAt < toISO) {
+        list.push({
+          id: d.id,
+          owner_id: data.owner_id || "",
+          partner_id: data.partner_id || null,
+          kind: data.kind || "teach",
+          skill: data.skill || "",
+          description: data.description || "",
+          is_online: data.is_online ?? true,
+          starts_at: data.starts_at || "",
+          ends_at: data.ends_at || "",
+          status: data.status || "open",
+          peerpoint_cost: data.peerpoint_cost ?? 1,
+          created_at: data.created_at || new Date().toISOString(),
+          owner_done: data.owner_done ?? false,
+          partner_done: data.partner_done ?? false,
+        });
+      }
+    });
+    return list.sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
+  } catch (err) {
+    console.warn("Error fetching slots from firestore, returning empty list:", err);
+    return [];
+  }
 }
 
 export async function fetchUpcomingSlots(userId: string): Promise<CalendarSlot[]> {
-  const { data, error } = await supabase
-    .from("calendar_slots")
-    .select("*")
-    .or(`owner_id.eq.${userId},partner_id.eq.${userId}`)
-    .gte("ends_at", new Date().toISOString())
-    .neq("status", "cancelled")
-    .order("starts_at", { ascending: true })
-    .limit(20);
-  if (error) throw error;
-  return (data ?? []) as CalendarSlot[];
+  const colPath = "calendar_slots";
+  try {
+    const snap = await getDocs(collection(db, colPath));
+    const nowIso = new Date().toISOString();
+    const list: CalendarSlot[] = [];
+    snap.forEach((d) => {
+      const data = d.data();
+      if (
+        (data.owner_id === userId || data.partner_id === userId) &&
+        data.ends_at >= nowIso &&
+        data.status !== "cancelled"
+      ) {
+        list.push({
+          id: d.id,
+          owner_id: data.owner_id || "",
+          partner_id: data.partner_id || null,
+          kind: data.kind || "teach",
+          skill: data.skill || "",
+          description: data.description || "",
+          is_online: data.is_online ?? true,
+          starts_at: data.starts_at || "",
+          ends_at: data.ends_at || "",
+          status: data.status || "open",
+          peerpoint_cost: data.peerpoint_cost ?? 1,
+          created_at: data.created_at || new Date().toISOString(),
+          owner_done: data.owner_done ?? false,
+          partner_done: data.partner_done ?? false,
+        });
+      }
+    });
+    return list
+      .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
+      .slice(0, 20);
+  } catch (err) {
+    console.warn("Could not query upcoming slots:", err);
+    return [];
+  }
 }
 
 export type NewSlot = {
@@ -81,31 +141,62 @@ export type NewSlot = {
 };
 
 export async function createSlot(slot: NewSlot): Promise<void> {
-  const { error } = await supabase.from("calendar_slots").insert(slot);
-  if (error) throw error;
+  const id = `slot_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const docPath = `calendar_slots/${id}`;
+  try {
+    await setDoc(doc(db, "calendar_slots", id), {
+      ...slot,
+      id,
+      partner_id: null,
+      status: "open",
+      created_at: new Date().toISOString(),
+      owner_done: false,
+      partner_done: false,
+    });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.CREATE, docPath);
+  }
 }
 
 export async function updateSlot(id: string, patch: Partial<NewSlot>): Promise<void> {
-  const { error } = await supabase.from("calendar_slots").update(patch).eq("id", id);
-  if (error) throw error;
+  const docPath = `calendar_slots/${id}`;
+  try {
+    await updateDoc(doc(db, "calendar_slots", id), patch);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, docPath);
+  }
 }
 
 export async function deleteSlot(id: string): Promise<void> {
-  const { error } = await supabase.from("calendar_slots").delete().eq("id", id);
-  if (error) throw error;
+  const docPath = `calendar_slots/${id}`;
+  try {
+    await deleteDoc(doc(db, "calendar_slots", id));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, docPath);
+  }
 }
 
 export async function joinSlot(id: string): Promise<void> {
-  const { error } = await supabase.rpc("join_calendar_slot", { _slot_id: id });
-  if (error) throw error;
+  const currentUserId = auth.currentUser?.uid;
+  if (!currentUserId) throw new Error("Foydalanuvchi tizimga kirmagan");
+  const docPath = `calendar_slots/${id}`;
+  try {
+    await updateDoc(doc(db, "calendar_slots", id), {
+      partner_id: currentUserId,
+      status: "requested",
+    });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, docPath);
+  }
 }
 
 export async function setSlotStatus(id: string, status: SlotStatus): Promise<void> {
-  const { error } = await supabase.rpc("set_calendar_slot_status", {
-    _slot_id: id,
-    _status: status,
-  });
-  if (error) throw error;
+  const docPath = `calendar_slots/${id}`;
+  try {
+    await updateDoc(doc(db, "calendar_slots", id), { status });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.UPDATE, docPath);
+  }
 }
 
 /* ---------- date helpers (local time) ---------- */

@@ -1,0 +1,316 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.admin == true ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Profiles Collection
+    // Protection against client cheating:
+    // 1. Initial creation must enforce default free tier and initial balances (cannot self-grant coins or paid plan).
+    // 2. Profile updates strictly prohibit clients from modifying 'peercoins', 'plan', or 'weekly_lessons_used'.
+    // 3. User ID and document ID are immutable.
+    match /profiles/{userId} {
+      allow read: if isSignedIn();
+      
+      allow create: if isValidId(userId) && isOwner(userId) &&
+        incoming().id == userId &&
+        (isAdmin() || (
+          incoming().plan == 'free' &&
+          incoming().peercoins == 10 &&
+          (!('weekly_lessons_used' in incoming()) || incoming().weekly_lessons_used == 0) &&
+          (!('weekly_points_used' in incoming()) || incoming().weekly_points_used == 0)
+        ));
+
+      allow update: if isValidId(userId) && (
+        isAdmin() || (
+          isOwner(userId) &&
+          incoming().id == existing().id &&
+          !incoming().diff(existing()).affectedKeys().hasAny([
+            'peercoins',
+            'plan',
+            'weekly_lessons_used',
+            'weekly_points_used'
+          ])
+        )
+      );
+
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // Swap Sessions Collection
+    // Protection against session tampering:
+    // 1. Sessions can only be accessed by the requester, partner, or admin.
+    // 2. On creation, requester_id must match current user, partner_id must be distinct, initial status must be 'pending'.
+    // 3. On update, participants cannot change participant IDs (requester_id, partner_id), nor edit once 'completed'.
+    // 4. Clients cannot tamper with economy settlements ('is_settled', 'points_transferred') which are handled server-side.
+    match /swap_sessions/{sessionId} {
+      allow get: if isValidId(sessionId) && isSignedIn() && (
+        resource.data.requester_id == request.auth.uid ||
+        resource.data.partner_id == request.auth.uid ||
+        isAdmin()
+      );
+      
+      allow list: if isSignedIn() && (
+        resource.data.requester_id == request.auth.uid ||
+        resource.data.partner_id == request.auth.uid ||
+        isAdmin()
+      );
+
+      allow create: if isValidId(sessionId) && isSignedIn() &&
+        incoming().requester_id == request.auth.uid &&
+        incoming().partner_id is string &&
+        incoming().partner_id != request.auth.uid &&
+        incoming().status == 'pending';
+
+      allow update: if isValidId(sessionId) && isSignedIn() && (
+        isAdmin() || (
+          (existing().requester_id == request.auth.uid || existing().partner_id == request.auth.uid) &&
+          incoming().requester_id == existing().requester_id &&
+          incoming().partner_id == existing().partner_id &&
+          existing().status != 'completed' &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'status',
+            'completed_at',
+            'requester_teaches',
+            'partner_teaches',
+            'requester_confirmed',
+            'requester_confirmed_at',
+            'partner_confirmed',
+            'partner_confirmed_at',
+            'no_show',
+            'no_show_reported_by',
+            'no_show_reason',
+            'no_show_at',
+            'review_reason',
+            'updated_at'
+          ])
+        )
+      );
+
+      allow delete: if isValidId(sessionId) && (
+        isAdmin() || (
+          isSignedIn() &&
+          existing().requester_id == request.auth.uid &&
+          existing().status == 'pending'
+        )
+      );
+
+      // Session Chat Messages Subcollection (swap_sessions/{sessionId}/messages/{messageId})
+      match /messages/{messageId} {
+        function parentSession() {
+          return get(/databases/$(database)/documents/swap_sessions/$(sessionId)).data;
+        }
+
+        function isSessionParticipant() {
+          let s = parentSession();
+          return s != null && (s.requester_id == request.auth.uid || s.partner_id == request.auth.uid);
+        }
+
+        allow get, list: if isValidId(messageId) && isSignedIn() && (
+          isSessionParticipant() || isAdmin()
+        );
+
+        allow create: if isValidId(messageId) && isSignedIn() && (
+          isSessionParticipant() || isAdmin()
+        ) &&
+        incoming().senderId == request.auth.uid &&
+        incoming().text is string &&
+        incoming().text.size() > 0 &&
+        incoming().text.size() <= 4000;
+
+        allow update: if isValidId(messageId) && isSignedIn() && (
+          isAdmin() || (
+            isSessionParticipant() &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['logistics']) &&
+            incoming().senderId == existing().senderId &&
+            incoming().text == existing().text
+          )
+        );
+
+        allow delete: if isValidId(messageId) && isAdmin();
+      }
+    }
+
+    // Calendar Slots Collection
+    // Protection against slot tampering:
+    // 1. Slot owner creates their own open slot.
+    // 2. Slot owner cannot be altered.
+    // 3. Potential partners can only request open slots without altering other slot metadata.
+    match /calendar_slots/{slotId} {
+      allow get: if isValidId(slotId) && isSignedIn();
+      allow list: if isSignedIn();
+      
+      allow create: if isValidId(slotId) && isSignedIn() &&
+        incoming().owner_id == request.auth.uid &&
+        incoming().status == 'open';
+
+      allow update: if isValidId(slotId) && isSignedIn() && (
+        isAdmin() || (
+          incoming().owner_id == existing().owner_id && (
+            (existing().owner_id == request.auth.uid &&
+             incoming().diff(existing()).affectedKeys().hasOnly([
+               'kind', 'skill', 'description', 'is_online', 'starts_at', 'ends_at',
+               'status', 'peerpoint_cost', 'partner_id', 'owner_done', 'partner_done'
+             ])) ||
+            (existing().status == 'open' &&
+             incoming().partner_id == request.auth.uid &&
+             incoming().status == 'requested' &&
+             incoming().diff(existing()).affectedKeys().hasOnly(['partner_id', 'status'])) ||
+            (existing().partner_id == request.auth.uid &&
+             incoming().diff(existing()).affectedKeys().hasOnly(['status', 'partner_done']))
+          )
+        )
+      );
+
+      allow delete: if isValidId(slotId) && isSignedIn() && (
+        existing().owner_id == request.auth.uid ||
+        isAdmin()
+      );
+
+      // Slot Chat Messages Subcollection (calendar_slots/{slotId}/messages/{messageId})
+      match /messages/{messageId} {
+        function parentSlot() {
+          return get(/databases/$(database)/documents/calendar_slots/$(slotId)).data;
+        }
+
+        function isSlotParticipant() {
+          let s = parentSlot();
+          return s != null && (s.owner_id == request.auth.uid || s.partner_id == request.auth.uid);
+        }
+
+        allow get, list: if isValidId(messageId) && isSignedIn() && (
+          isSlotParticipant() || isAdmin()
+        );
+
+        allow create: if isValidId(messageId) && isSignedIn() && (
+          isSlotParticipant() || isAdmin()
+        ) &&
+        incoming().senderId == request.auth.uid &&
+        incoming().text is string &&
+        incoming().text.size() > 0 &&
+        incoming().text.size() <= 4000;
+
+        allow update: if isValidId(messageId) && isSignedIn() && (
+          isAdmin() || (
+            isSlotParticipant() &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['logistics']) &&
+            incoming().senderId == existing().senderId &&
+            incoming().text == existing().text
+          )
+        );
+
+        allow delete: if isValidId(messageId) && isAdmin();
+      }
+    }
+
+    // Feedback Collection
+    // Protection: private read access limited to author and admin.
+    match /feedback/{feedbackId} {
+      allow get: if isValidId(feedbackId) && isSignedIn() && (
+        resource.data.user_id == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.user_id == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isValidId(feedbackId) && isSignedIn() &&
+        incoming().user_id == request.auth.uid;
+      allow update: if isValidId(feedbackId) && isAdmin();
+      allow delete: if isValidId(feedbackId) && isAdmin();
+    }
+
+    // Reports Collection (Abuse handling)
+    // Regular users can only submit their own report against another user.
+    // Reading reports is strictly admin-only.
+    match /reports/{reportId} {
+      allow get, list: if isAdmin();
+      allow create: if isValidId(reportId) && isSignedIn() &&
+        incoming().reporter_id == request.auth.uid &&
+        incoming().reported_user_id is string &&
+        incoming().reported_user_id != request.auth.uid;
+      allow update, delete: if isValidId(reportId) && isAdmin();
+    }
+
+    // Point Transactions Collection (Server Ledger)
+    // Recorded by Cloud Functions during atomic completeSession settlement.
+    match /point_transactions/{txId} {
+      allow get, list: if isSignedIn() && (
+        resource.data.learner_id == request.auth.uid ||
+        resource.data.teacher_id == request.auth.uid ||
+        isAdmin()
+      );
+      allow write: if isAdmin();
+    }
+
+    // AI Recommendations Collection
+    // Protection: private recommendations only visible to user or admin.
+    match /ai_recommendations/{recId} {
+      allow get: if isValidId(recId) && isSignedIn() && (
+        resource.data.user_id == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.user_id == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isValidId(recId) && isSignedIn() && incoming().user_id == request.auth.uid;
+      allow update, delete: if isValidId(recId) && isAdmin();
+    }
+
+    // Subscription Requests Collection (Pending upgrade requests)
+    // Regular users can only read their own requests and submit pending requests.
+    // They cannot modify, activate plans, or approve requests.
+    match /subscription_requests/{requestId} {
+      allow get: if isValidId(requestId) && isSignedIn() && (
+        resource.data.user_id == request.auth.uid || isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.user_id == request.auth.uid || isAdmin()
+      );
+      allow create: if isValidId(requestId) && isSignedIn() &&
+        incoming().user_id == request.auth.uid &&
+        incoming().status == 'pending_payment';
+      allow update, delete: if isValidId(requestId) && isAdmin();
+    }
+
+    // Admins Collection
+    // Checked dynamically without hardcoding emails in rules or code.
+    // Signed-in users can check their own admin doc, while only admins can list or write.
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && (request.auth.uid == adminId || isAdmin());
+      allow list: if isAdmin();
+      allow write: if isAdmin();
+    }
+  }
+}
