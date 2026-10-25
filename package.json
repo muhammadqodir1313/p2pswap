@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "test": "npm --prefix functions test",
     "test:e2e": "python3 e2e/full_flow.py"
   },
   "overrides": {

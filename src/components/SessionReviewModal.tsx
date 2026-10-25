@@ -59,22 +59,12 @@ export function SessionReviewModal({
         if (isCalendarSlot) {
           await updateDoc(doc(db, "calendar_slots", sessionId), { status: "cancelled" });
         } else {
-          try {
-            await callConfirmSessionAttendance({
-              sessionId,
-              didAttend: false,
-              isNoShow: true,
-              reason: noShowReason.trim() || "Hamkor darsga qatnashmadi (No-show)",
-            });
-          } catch {
-            await updateDoc(doc(db, "swap_sessions", sessionId), {
-              status: "disputed",
-              no_show: true,
-              no_show_reported_by: userId,
-              no_show_reason: noShowReason.trim() || "Hamkor kelmadi (No-show)",
-              updated_at: new Date().toISOString(),
-            });
-          }
+          await callConfirmSessionAttendance({
+            sessionId,
+            didAttend: false,
+            isNoShow: true,
+            reason: noShowReason.trim() || "Hamkor darsga qatnashmadi (No-show)",
+          });
         }
 
         toast.info(
@@ -85,7 +75,30 @@ export function SessionReviewModal({
         return;
       }
 
-      // User confirmed they attended
+      // Handle server-side confirmation & settlement FIRST
+      if (isCalendarSlot) {
+        await updateDoc(doc(db, "calendar_slots", sessionId), {
+          status: "completed",
+          [isOwner ? "owner_done" : "partner_done"]: true,
+        });
+      } else {
+        const res = await callConfirmSessionAttendance({
+          sessionId,
+          didAttend: true,
+        });
+
+        if (res.bothConfirmed || res.settled) {
+          toast.success(
+            "Ikkala tomon ham darsni tasdiqladi! Server tranzaksiyasi orqali 1 PeerPoint adolatli o‘tkazildi.",
+          );
+        } else {
+          toast.info(
+            "Ishtirokingiz tasdiqlandi. Hamkor ham tasdiqlagan zahoti 1 PeerPoint server tomonidan hisob-kitob qilinadi.",
+          );
+        }
+      }
+
+      // Record local attended state & submit feedback ONLY after confirmation succeeds
       markUserAttended(sessionId, isOwner);
 
       // Save feedback in Firestore
@@ -99,40 +112,8 @@ export function SessionReviewModal({
         created_at: new Date().toISOString(),
       });
 
-      // Handle server-side confirmation & settlement
       if (isCalendarSlot) {
-        await updateDoc(doc(db, "calendar_slots", sessionId), {
-          status: "completed",
-          [isOwner ? "owner_done" : "partner_done"]: true,
-        });
         toast.success("Fikr-mulohazangiz va mashg‘ulotdagi ishtirokingiz qabul qilindi!");
-      } else {
-        try {
-          const res = await callConfirmSessionAttendance({
-            sessionId,
-            didAttend: true,
-          });
-
-          if (res.bothConfirmed || res.settled) {
-            toast.success(
-              "Ikkala tomon ham darsni tasdiqladi! Server tranzaksiyasi orqali 1 PeerPoint adolatli o‘tkazildi.",
-            );
-          } else {
-            toast.info(
-              "Ishtirokingiz tasdiqlandi. Hamkor ham tasdiqlagan zahoti 1 PeerPoint server tomonidan hisob-kitob qilinadi.",
-            );
-          }
-        } catch {
-          // Fallback update session confirmation fields
-          const field = isOwner ? "requester_confirmed" : "partner_confirmed";
-          const timeField = isOwner ? "requester_confirmed_at" : "partner_confirmed_at";
-          await updateDoc(doc(db, "swap_sessions", sessionId), {
-            [field]: true,
-            [timeField]: new Date().toISOString(),
-            status: "accepted",
-          });
-          toast.success("Ishtirokingiz tasdiqlandi!");
-        }
       }
 
       onClose();

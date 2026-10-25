@@ -11,6 +11,12 @@ PeerSwap — foydalanuvchilar o‘z bilim va tajribalarini bir-birlari bilan ten
 - Aqlli hamkor tavsiya qilish tizimi
 - To‘liq o‘zbek tilidagi interfeys va FAQ bo‘limi
 
+## Hujjatlar va Loyiha Bosqichlari (Documentation & Roadmap)
+
+- **To‘liq dokumentatsiya va funksionallik hisoboti:** [`LOYIHA_DOKUMENTATSIYASI.md`](./LOYIHA_DOKUMENTATSIYASI.md)
+- **Bosqich holati:** **Stage 2 (Xavfsiz Obuna va Iqtisodiyot Arxitekturasi) yakunlangan**
+- **Dastlabki hisobot:** [`LOYIHA_HISOBOTI.md`](./LOYIHA_HISOBOTI.md)
+
 ## Mahalliy ishga tushirish (Local Development)
 
 ```sh

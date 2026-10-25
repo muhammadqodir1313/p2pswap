@@ -25,15 +25,203 @@ export const PLAN_LIMITS: Record<"free" | "premium" | "pro", number> = {
   pro: Infinity,
 };
 
+// Server-controlled administrator emails bootstrap list
+const ADMIN_EMAILS = new Set(["farhodjonovichm1301@gmail.com"]);
+
 /**
- * Helper to execute the session completion transaction.
+ * Server-side Admin Verification Helper
+ * Strictly verifies admin authorization using server-controlled custom claims,
+ * the admins collection document, or verified owner email fallback.
+ * Automatically bootstraps admins/{uid} document for verified initial admins
+ * to ensure consistency with Firestore Security Rules.
+ */
+export async function isCallerAdmin(
+  auth: { uid: string; token?: Record<string, unknown> } | undefined,
+  db: ReturnType<typeof getDb>,
+): Promise<boolean> {
+  if (!auth) return false;
+  // 1. Custom token claim (primary server-controlled role)
+  if (auth.token?.admin === true) return true;
+
+  // 2. Admins collection document (server-controlled UID list)
+  try {
+    const adminDoc = await db.collection("admins").doc(auth.uid).get();
+    if (adminDoc.exists) return true;
+  } catch {
+    // ignore
+  }
+
+  // 3. Server-controlled admin UID environment variable
+  const adminUidsEnv = process.env.ADMIN_UIDS;
+  if (adminUidsEnv) {
+    const uids = adminUidsEnv.split(",").map((s) => s.trim());
+    if (uids.includes(auth.uid)) return true;
+  }
+
+  // 4. Initial admin bootstrap: verified email in server-controlled ADMIN_EMAILS set.
+  // Auto-provisions admins/{uid} doc so Firestore Rules' exists(/admins/$(auth.uid))
+  // immediately evaluates to true across client queries without split-brain authorization.
+  if (
+    auth.token?.email &&
+    auth.token?.email_verified === true &&
+    ADMIN_EMAILS.has(auth.token.email as string)
+  ) {
+    try {
+      await db.collection("admins").doc(auth.uid).set(
+        {
+          uid: auth.uid,
+          email: auth.token.email,
+          role: "super_admin",
+          bootstrapped_at: new Date().toISOString(),
+        },
+        { merge: true },
+      );
+    } catch (err) {
+      logger.warn("Could not auto-bootstrap admin document for verified admin email:", err);
+    }
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Resolves and validates participant roles for swap requests.
+ * Strictly guarantees that learner and teacher map only to the two participants
+ * and preserves direction (normal or inverted).
+ */
+export function resolveSessionRoles(
+  callerUid: string,
+  partnerId: unknown,
+  learnerId?: unknown,
+  teacherId?: unknown,
+): { learnerId: string; teacherId: string } {
+  if (!partnerId || typeof partnerId !== "string" || !partnerId.trim()) {
+    throw new HttpsError("invalid-argument", "Hamkor (partnerId) tanlanishi shart.");
+  }
+  if (partnerId === callerUid) {
+    throw new HttpsError("invalid-argument", "O‘zingizga o‘zingiz so‘rov yubora olmaysiz.");
+  }
+
+  let finalLearnerId = callerUid;
+  let finalTeacherId = partnerId;
+
+  if (learnerId !== undefined || teacherId !== undefined) {
+    const validNormal = learnerId === callerUid && teacherId === partnerId;
+    const validInverted = learnerId === partnerId && teacherId === callerUid;
+    if (validNormal) {
+      finalLearnerId = callerUid;
+      finalTeacherId = partnerId;
+    } else if (validInverted) {
+      finalLearnerId = partnerId;
+      finalTeacherId = callerUid;
+    } else {
+      throw new HttpsError(
+        "invalid-argument",
+        "O‘quvchi va o‘qituvchi faqat dars ishtirokchilari (so‘rov yuboruvchi va hamkor) bo‘lishi shart.",
+      );
+    }
+  }
+
+  return { learnerId: finalLearnerId, teacherId: finalTeacherId };
+}
+
+/**
+ * Validates session lifecycle status and participant role integrity for settlement.
+ * Enforces status prerequisites (must be 'accepted', cannot be pending, cancelled, or disputed),
+ * and verifies learner and teacher match the legitimate participants.
+ */
+export function validateSessionForSettlement(session: Record<string, unknown>): {
+  learnerId: string;
+  teacherId: string;
+  reqId: string;
+  partId: string;
+} {
+  // Status validation: cannot settle pending, cancelled, or disputed sessions
+  if (session.status === "pending") {
+    throw new HttpsError(
+      "failed-precondition",
+      "Kutilayotgan (pending) dars so‘rovi bo‘yicha davomat tasdiqlab bo‘lmaydi. Avval hamkor so‘rovni qabul qilishi shart.",
+    );
+  }
+  if (session.status === "cancelled") {
+    throw new HttpsError(
+      "failed-precondition",
+      "Bekor qilingan dars bo‘yicha davomat tasdiqlab bo‘lmaydi.",
+    );
+  }
+  if (session.status === "disputed" || session.no_show === true) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Nizoli yoki no-show belgilangan dars bo‘yicha hisob-kitob qilib bo‘lmaydi.",
+    );
+  }
+  if (session.status !== "accepted") {
+    throw new HttpsError(
+      "failed-precondition",
+      `Faqat qabul qilingan (accepted) mashg‘ulotlar bo‘yicha hisob-kitob qilish mumkin (Joriy holat: ${session.status || "noma'lum"}).`,
+    );
+  }
+
+  const reqId = session.requester_id;
+  const partId = session.partner_id;
+
+  if (
+    !reqId ||
+    !partId ||
+    typeof reqId !== "string" ||
+    typeof partId !== "string" ||
+    reqId === partId
+  ) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Sessiya ishtirokchilari identifikatori noto‘g‘ri yoki to‘liq emas.",
+    );
+  }
+
+  // Preserve intended lesson direction:
+  let learnerId = session.learner_id;
+  let teacherId = session.teacher_id;
+
+  if (!learnerId || !teacherId) {
+    learnerId = learnerId || reqId;
+    teacherId = teacherId || partId;
+  }
+
+  if (typeof learnerId !== "string" || typeof teacherId !== "string" || learnerId === teacherId) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Sessiyada o‘quvchi yoki o‘qituvchi identifikatori noto‘g‘ri.",
+    );
+  }
+
+  // Strictly enforce that learner and teacher must map exactly to the two legitimate participants
+  const isNormalDirection = learnerId === reqId && teacherId === partId;
+  const isInvertedDirection = learnerId === partId && teacherId === reqId;
+
+  if (!isNormalDirection && !isInvertedDirection) {
+    throw new HttpsError(
+      "invalid-argument",
+      "O‘quvchi va o‘qituvchi ushbu darsning haqiqiy ishtirokchilariga mos kelishi shart.",
+    );
+  }
+
+  return { learnerId, teacherId, reqId, partId };
+}
+
+/**
+ * Helper to execute session confirmation and atomic completion transaction.
  * Deducts 1 PeerPoint from the learner, adds 1 to the teacher, sets status to 'completed'.
  * Strictly idempotent: will never deduct/add twice.
+ * Concurrency-safe: simultaneous participant confirmations execute within the Firestore transaction,
+ * ensuring no fully confirmed session is left permanently unsettled.
  */
-async function executeSessionSettlementTransaction(
+export async function executeSessionSettlementTransaction(
   db: ReturnType<typeof getDb>,
   sessionId: string,
   callerUid?: string,
+  options?: {
+    confirmCallerAttendance?: boolean;
+  },
 ) {
   const sessionRef = db.collection("swap_sessions").doc(sessionId);
 
@@ -44,48 +232,75 @@ async function executeSessionSettlementTransaction(
     }
 
     const session = sessionSnap.data() || {};
+    const nowIso = new Date().toISOString();
 
-    // 1. Idempotency Check: if already completed, return immediately without duplicate transfer
+    // 1. Idempotency Check: if already completed or settled, return immediately without duplicate transfer
     if (session.status === "completed" || session.is_settled === true) {
       return {
         success: true,
         alreadyCompleted: true,
+        bothConfirmed: true,
+        settled: true,
         message: "Sessiya allaqachon muvaffaqiyatli yakunlangan va ballar o‘tkazilgan.",
         status: "completed",
       };
     }
 
-    // 2. Both participants must have confirmed
-    const reqConfirmed = session.requester_confirmed === true;
-    const partConfirmed = session.partner_confirmed === true;
+    // Status validation & participant role integrity check
+    const { learnerId, teacherId } = validateSessionForSettlement(session);
 
+    const isRequester = callerUid ? session.requester_id === callerUid : false;
+    const isPartner = callerUid ? session.partner_id === callerUid : false;
+
+    // Only actual participants may confirm attendance
+    if (options?.confirmCallerAttendance) {
+      if (!isRequester && !isPartner) {
+        throw new HttpsError(
+          "permission-denied",
+          "Faqat mashg‘ulotning haqiqiy ishtirokchilari davomatni tasdiqlashi mumkin.",
+        );
+      }
+    }
+
+    // Determine current confirmation status
+    const reqConfirmed =
+      options?.confirmCallerAttendance && isRequester ? true : session.requester_confirmed === true;
+    const partConfirmed =
+      options?.confirmCallerAttendance && isPartner ? true : session.partner_confirmed === true;
+
+    // If not both confirmed yet, update caller's confirmation flag or fail completeSession
     if (!reqConfirmed || !partConfirmed) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Ballarni o‘tkazish uchun ikkala ishtirokchi ham darsda qatnashganini tasdiqlashi shart.",
-      );
+      if (options?.confirmCallerAttendance) {
+        const updates: Record<string, unknown> = {
+          updated_at: nowIso,
+        };
+        if (isRequester) {
+          updates.requester_confirmed = true;
+          updates.requester_confirmed_at = nowIso;
+        } else if (isPartner) {
+          updates.partner_confirmed = true;
+          updates.partner_confirmed_at = nowIso;
+        }
+        transaction.update(sessionRef, updates);
+
+        return {
+          success: true,
+          alreadyCompleted: false,
+          bothConfirmed: false,
+          settled: false,
+          message:
+            "Ishtirokingiz tasdiqlandi. Hamkor ham tasdiqlaganidan so‘ng PeerPointlar adolatli o‘tkaziladi.",
+        };
+      } else {
+        // Direct completeSession call before dual confirmation
+        throw new HttpsError(
+          "failed-precondition",
+          "Dars hali ikkala ishtirokchi tomonidan to‘liq tasdiqlanmagan. Hisob-kitob amalga oshirilmadi.",
+        );
+      }
     }
 
-    // Determine learner and teacher
-    // By default: requester requested the lesson, so requester is learner, partner is teacher.
-    // If learner_id/teacher_id are explicitly recorded on session, use those.
-    const learnerId = session.learner_id || session.requester_id;
-    const teacherId = session.teacher_id || session.partner_id;
-
-    if (!learnerId || !teacherId) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Sessiyada o‘quvchi yoki o‘qituvchi identifikatori ko‘rsatilmagan.",
-      );
-    }
-
-    if (learnerId === teacherId) {
-      throw new HttpsError(
-        "invalid-argument",
-        "O‘quvchi va o‘qituvchi bir xil foydalanuvchi bo‘lishi mumkin emas.",
-      );
-    }
-
+    // 2. Both participants have confirmed! Proceed to atomic settlement
     const learnerRef = db.collection("profiles").doc(learnerId);
     const teacherRef = db.collection("profiles").doc(teacherId);
 
@@ -115,8 +330,6 @@ async function executeSessionSettlementTransaction(
       );
     }
 
-    const nowIso = new Date().toISOString();
-
     // 4. Atomic transaction mutations
     transaction.update(learnerRef, {
       peercoins: learnerCoins - 1,
@@ -128,14 +341,27 @@ async function executeSessionSettlementTransaction(
       updated_at: nowIso,
     });
 
-    transaction.update(sessionRef, {
+    const sessionUpdates: Record<string, unknown> = {
       status: "completed",
       completed_at: nowIso,
       is_settled: true,
       settled_at: nowIso,
       points_transferred: 1,
+      requester_confirmed: true,
+      partner_confirmed: true,
       updated_at: nowIso,
-    });
+    };
+
+    if (options?.confirmCallerAttendance) {
+      if (isRequester && !session.requester_confirmed) {
+        sessionUpdates.requester_confirmed_at = nowIso;
+      }
+      if (isPartner && !session.partner_confirmed) {
+        sessionUpdates.partner_confirmed_at = nowIso;
+      }
+    }
+
+    transaction.update(sessionRef, sessionUpdates);
 
     // 5. Append ledger entry for audit trail
     const txRef = db.collection("point_transactions").doc();
@@ -152,6 +378,8 @@ async function executeSessionSettlementTransaction(
     return {
       success: true,
       alreadyCompleted: false,
+      bothConfirmed: true,
+      settled: true,
       message:
         "Mashg‘ulot muvaffaqiyatli yakunlandi: O‘quvchidan 1 PeerPoint yechildi va O‘qituvchiga 1 PeerPoint o‘tkazildi.",
       status: "completed",
@@ -188,7 +416,7 @@ export const completeSession = onCall({ cors: true }, async (request) => {
 
   // Caller must be one of the participants or an admin
   const isParticipant = data.requester_id === callerUid || data.partner_id === callerUid;
-  const isAdmin = request.auth.token?.admin === true;
+  const isAdmin = await isCallerAdmin(request.auth, db);
 
   if (!isParticipant && !isAdmin) {
     throw new HttpsError("permission-denied", "Siz ushbu mashg‘ulot ishtirokchisi emassiz.");
@@ -199,7 +427,7 @@ export const completeSession = onCall({ cors: true }, async (request) => {
 
 /**
  * 2. Weekly limits: free = 3 lessons/week, premium = 15 PeerPoints/week, pro = unlimited.
- * Enforce when a swap request is created and show a clear UI error.
+ * Enforces atomic quota increment and strict participant role validation.
  */
 export const createSwapRequest = onCall({ cors: true }, async (request) => {
   if (!request.auth) {
@@ -209,7 +437,7 @@ export const createSwapRequest = onCall({ cors: true }, async (request) => {
   const callerUid = request.auth.uid;
   const { partnerId, requesterTeaches, partnerTeaches, learnerId, teacherId } = request.data || {};
 
-  if (!partnerId || typeof partnerId !== "string") {
+  if (!partnerId || typeof partnerId !== "string" || !partnerId.trim()) {
     throw new HttpsError("invalid-argument", "Hamkor (partnerId) tanlanishi shart.");
   }
 
@@ -219,11 +447,19 @@ export const createSwapRequest = onCall({ cors: true }, async (request) => {
 
   const db = getDb();
   const callerRef = db.collection("profiles").doc(callerUid);
+  const partnerRef = db.collection("profiles").doc(partnerId);
 
   return db.runTransaction(async (transaction) => {
-    const callerSnap = await transaction.get(callerRef);
+    const [callerSnap, partnerSnap] = await Promise.all([
+      transaction.get(callerRef),
+      transaction.get(partnerRef),
+    ]);
+
     if (!callerSnap.exists) {
       throw new HttpsError("not-found", "Foydalanuvchi profili topilmadi.");
+    }
+    if (!partnerSnap.exists) {
+      throw new HttpsError("not-found", "Hamkor profili topilmadi.");
     }
 
     const profile = callerSnap.data() || {};
@@ -249,6 +485,14 @@ export const createSwapRequest = onCall({ cors: true }, async (request) => {
       throw new HttpsError("resource-exhausted", msg);
     }
 
+    // Role mapping: strictly enforce that learner and teacher can ONLY be callerUid and partnerId
+    const { learnerId: finalLearnerId, teacherId: finalTeacherId } = resolveSessionRoles(
+      callerUid,
+      partnerId,
+      learnerId,
+      teacherId,
+    );
+
     const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const sessionRef = db.collection("swap_sessions").doc(sessionId);
     const nowIso = new Date().toISOString();
@@ -267,14 +511,15 @@ export const createSwapRequest = onCall({ cors: true }, async (request) => {
       partner_id: partnerId,
       requester_teaches: requesterTeaches || "Kelishiladi",
       partner_teaches: partnerTeaches || "Kelishiladi",
-      learner_id: learnerId || callerUid,
-      teacher_id: teacherId || partnerId,
+      learner_id: finalLearnerId,
+      teacher_id: finalTeacherId,
       status: "pending",
       requester_confirmed: false,
       partner_confirmed: false,
       created_at: nowIso,
       completed_at: null,
       is_settled: false,
+      points_transferred: 0,
     });
 
     return {
@@ -291,6 +536,7 @@ export const createSwapRequest = onCall({ cors: true }, async (request) => {
 /**
  * Attendance and Confirmation Handler
  * Handles both participant attendance confirmation and No-Show abuse handling.
+ * Concurrency-safe: atomically executes confirmation and settlement.
  */
 export const confirmSessionAttendance = onCall({ cors: true }, async (request) => {
   if (!request.auth) {
@@ -300,105 +546,114 @@ export const confirmSessionAttendance = onCall({ cors: true }, async (request) =
   const callerUid = request.auth.uid;
   const { sessionId, didAttend, isNoShow, reason } = request.data || {};
 
-  if (!sessionId) {
+  if (!sessionId || typeof sessionId !== "string") {
     throw new HttpsError("invalid-argument", "sessionId kiritilishi shart.");
   }
 
   const db = getDb();
   const sessionRef = db.collection("swap_sessions").doc(sessionId);
-  const sessionSnap = await sessionRef.get();
-
-  if (!sessionSnap.exists) {
-    throw new HttpsError("not-found", "Sessiya topilmadi.");
-  }
-
-  const session = sessionSnap.data() || {};
-  const isRequester = session.requester_id === callerUid;
-  const isPartner = session.partner_id === callerUid;
-  const isAdmin = request.auth.token?.admin === true;
-
-  if (!isRequester && !isPartner && !isAdmin) {
-    throw new HttpsError("permission-denied", "Siz ushbu dars ishtirokchisi emassiz.");
-  }
-
   const nowIso = new Date().toISOString();
 
   // 3. Abuse handling: "no-show" option in the session flow
   if (didAttend === false || isNoShow === true) {
-    const partnerId = isRequester ? session.partner_id : session.requester_id;
+    const reportData = await db.runTransaction(async (transaction) => {
+      const sessionSnap = await transaction.get(sessionRef);
+      if (!sessionSnap.exists) {
+        throw new HttpsError("not-found", "Sessiya topilmadi.");
+      }
+      const session = sessionSnap.data() || {};
+      const isRequester = session.requester_id === callerUid;
+      const isPartner = session.partner_id === callerUid;
 
-    // Mark session as disputed/no_show, cancel point deduction
-    await sessionRef.update({
-      status: "disputed",
-      no_show: true,
-      no_show_reported_by: callerUid,
-      no_show_reason: reason || "Hamkor mashg‘ulotga kelmadi (No-show)",
-      no_show_at: nowIso,
-      updated_at: nowIso,
-    });
+      if (!isRequester && !isPartner) {
+        throw new HttpsError(
+          "permission-denied",
+          "Faqat mashg‘ulotning haqiqiy ishtirokchilari no-show xabar qilishi mumkin.",
+        );
+      }
 
-    // Automatically register a report in reports collection (admin-only read)
-    const reportId = `rep_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    await db
-      .collection("reports")
-      .doc(reportId)
-      .set({
-        id: reportId,
-        reporter_id: callerUid,
-        reported_user_id: partnerId,
-        session_id: sessionId,
-        reason: "no_show",
-        details: reason || "Hamkor darsga qatnashmadi (No-show).",
-        status: "pending",
-        created_at: nowIso,
+      // Cannot report no-show on completed or settled sessions
+      if (session.status === "completed" || session.is_settled === true) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Yakunlangan yoki hisob-kitob qilingan sessiya bo‘yicha no-show e’lon qilib bo‘lmaydi.",
+        );
+      }
+
+      // Cannot report no-show on cancelled sessions
+      if (session.status === "cancelled") {
+        throw new HttpsError(
+          "failed-precondition",
+          "Bekor qilingan dars bo‘yicha no-show xabar qilib bo‘lmaydi.",
+        );
+      }
+
+      // Cannot report no-show on pending sessions (not yet accepted)
+      if (session.status === "pending") {
+        throw new HttpsError(
+          "failed-precondition",
+          "Kutilayotgan (pending) so‘rov bo‘yicha no-show e’lon qilib bo‘lmaydi. Avval hamkor darsni qabul qilishi shart.",
+        );
+      }
+
+      // Idempotency: if already disputed, return gracefully
+      if (session.status === "disputed" && session.no_show === true) {
+        return {
+          alreadyDisputed: true,
+          partnerId: isRequester ? session.partner_id : session.requester_id,
+        };
+      }
+
+      const partnerId = isRequester ? session.partner_id : session.requester_id;
+      const reportId = `rep_noshow_${sessionId}_${callerUid}`;
+      const reportRef = db.collection("reports").doc(reportId);
+
+      transaction.update(sessionRef, {
+        status: "disputed",
+        no_show: true,
+        no_show_reported_by: callerUid,
+        no_show_reason: reason || "Hamkor mashg‘ulotga kelmadi (No-show)",
+        no_show_at: nowIso,
+        updated_at: nowIso,
       });
+
+      // Atomically create the audit report document inside the same transaction
+      transaction.set(
+        reportRef,
+        {
+          id: reportId,
+          reporter_id: callerUid,
+          reported_user_id: partnerId,
+          session_id: sessionId,
+          reason: "no_show",
+          details: reason || "Hamkor darsga qatnashmadi (No-show).",
+          status: "pending",
+          created_at: nowIso,
+        },
+        { merge: true },
+      );
+
+      return {
+        alreadyDisputed: false,
+        partnerId,
+      };
+    });
 
     return {
       success: true,
-      noShowRecorded: true,
+      noShowRecorded: !reportData.alreadyDisputed,
+      alreadyDisputed: reportData.alreadyDisputed,
       status: "disputed",
-      message:
-        "No-show belgilandi. Balansingizdan hech qanday PeerPoint yechilmadi va ma’muriyatga xabar qilindi.",
+      message: reportData.alreadyDisputed
+        ? "No-show allaqachon belgilangan."
+        : "No-show belgilandi. Balansingizdan hech qanday PeerPoint yechilmadi va ma’muriyatga xabar qilindi.",
     };
   }
 
-  // Mark current user as confirmed
-  const updates: Record<string, unknown> = {
-    updated_at: nowIso,
-  };
-
-  if (isRequester) {
-    updates.requester_confirmed = true;
-    updates.requester_confirmed_at = nowIso;
-  } else {
-    updates.partner_confirmed = true;
-    updates.partner_confirmed_at = nowIso;
-  }
-
-  await sessionRef.update(updates);
-
-  // Check if BOTH participants have confirmed
-  const otherConfirmed = isRequester
-    ? session.partner_confirmed === true
-    : session.requester_confirmed === true;
-
-  if (otherConfirmed) {
-    // Both confirmed! Run the settlement transaction automatically
-    const settlement = await executeSessionSettlementTransaction(db, sessionId, callerUid);
-    return {
-      bothConfirmed: true,
-      settled: true,
-      ...settlement,
-    };
-  }
-
-  return {
-    success: true,
-    bothConfirmed: false,
-    settled: false,
-    message:
-      "Ishtirokingiz tasdiqlandi. Hamkor ham tasdiqlaganidan so‘ng PeerPointlar adolatli o‘tkaziladi.",
-  };
+  // Attendance confirmation (didAttend !== false)
+  return executeSessionSettlementTransaction(db, sessionId, callerUid, {
+    confirmCallerAttendance: true,
+  });
 });
 
 /**
@@ -661,14 +916,7 @@ export const adminSetUserPlan = onCall({ cors: true }, async (request) => {
   const callerUid = request.auth.uid;
   const db = getDb();
 
-  const isTokenAdmin = request.auth.token?.admin === true;
-  const isEmailAdmin = request.auth.token?.email === "farhodjonovichm1301@gmail.com";
-  let isAdmin = isTokenAdmin || isEmailAdmin;
-
-  if (!isAdmin) {
-    const adminDoc = await db.collection("admins").doc(callerUid).get();
-    isAdmin = adminDoc.exists;
-  }
+  const isAdmin = await isCallerAdmin(request.auth, db);
 
   if (!isAdmin) {
     throw new HttpsError("permission-denied", "Ushbu amalni faqat administrator bajara oladi.");

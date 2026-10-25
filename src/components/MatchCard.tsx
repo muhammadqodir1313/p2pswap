@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { doc, setDoc } from "firebase/firestore";
 import { Link } from "@tanstack/react-router";
 import { AlertCircle, Sparkles } from "lucide-react";
 
@@ -14,14 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SkillTags } from "@/components/SkillTags";
-import { db } from "@/lib/firebase";
-import {
-  fullName,
-  initials,
-  spendPeerPoint,
-  type MatchResult,
-  type ProfileWithSkills,
-} from "@/lib/peerswap";
+import { fullName, initials, type MatchResult, type ProfileWithSkills } from "@/lib/peerswap";
 import { callCreateSwapRequest } from "@/lib/functions";
 
 export function MatchCard({
@@ -89,33 +81,7 @@ export function MatchCard({
         return;
       }
 
-      // Fallback: direct firestore write if function is not available in local environment
-      try {
-        await spendPeerPoint();
-        const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-        await setDoc(doc(db, "swap_sessions", sessionId), {
-          id: sessionId,
-          requester_id: meId,
-          partner_id: profile.id,
-          requester_teaches: match.iTeach.join(", ") || "Kelishiladi",
-          partner_teaches: match.theyTeach.join(", ") || "Kelishiladi",
-          learner_id: meId,
-          teacher_id: profile.id,
-          status: "pending",
-          requester_confirmed: false,
-          partner_confirmed: false,
-          created_at: new Date().toISOString(),
-          completed_at: null,
-        });
-
-        setSent(true);
-        toast.success("Almashinuv so‘rovi yuborildi — 1 PeerPoint ishlatildi.");
-        onRequested?.();
-      } catch (innerErr: unknown) {
-        console.error(innerErr);
-        toast.error("Almashinuv so‘rovini yuborib bo‘lmadi. Qayta urinib ko‘ring.");
-        onRequested?.();
-      }
+      toast.error(`Almashinuv so‘rovini yuborib bo‘lmadi: ${msg}`);
     } finally {
       setBusy(false);
     }

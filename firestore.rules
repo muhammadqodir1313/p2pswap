@@ -86,11 +86,9 @@ service cloud.firestore {
         isAdmin()
       );
 
-      allow create: if isValidId(sessionId) && isSignedIn() &&
-        incoming().requester_id == request.auth.uid &&
-        incoming().partner_id is string &&
-        incoming().partner_id != request.auth.uid &&
-        incoming().status == 'pending';
+      // Direct client creation is disabled to prevent quota bypass and role forging.
+      // All swap sessions must be created via the trusted 'createSwapRequest' Cloud Function.
+      allow create: if isValidId(sessionId) && isAdmin();
 
       allow update: if isValidId(sessionId) && isSignedIn() && (
         isAdmin() || (
@@ -98,22 +96,14 @@ service cloud.firestore {
           incoming().requester_id == existing().requester_id &&
           incoming().partner_id == existing().partner_id &&
           existing().status != 'completed' &&
+          existing().status != 'disputed' &&
           incoming().diff(existing()).affectedKeys().hasOnly([
             'status',
-            'completed_at',
             'requester_teaches',
             'partner_teaches',
-            'requester_confirmed',
-            'requester_confirmed_at',
-            'partner_confirmed',
-            'partner_confirmed_at',
-            'no_show',
-            'no_show_reported_by',
-            'no_show_reason',
-            'no_show_at',
-            'review_reason',
             'updated_at'
-          ])
+          ]) &&
+          incoming().status in ['pending', 'accepted', 'cancelled']
         )
       );
 
